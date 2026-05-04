@@ -82,6 +82,8 @@ async def init_scan(request: ScanRequest):
                 "message": f"Showing files {request.offset + 1}-{request.offset + len(files)} of {total_found}." if total_found > 50 else None
             }
             
+    except HTTPException:
+        raise
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
