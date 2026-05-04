@@ -7,12 +7,28 @@ from app.core.config import settings
 class AnalyzeService:
     def __init__(self):
         # Groq Configuration (Primary Engine)
+        """
+        Initialize the AnalyzeService instance by configuring the Groq client for the primary engine when a GROQ API key is available.
+        
+        If `settings.GROQ_API_KEY` is set, `self.groq_client` is initialized with `Groq(api_key=...)`; otherwise `self.groq_client` is set to `None`.
+        """
         if settings.GROQ_API_KEY:
             self.groq_client = Groq(api_key=settings.GROQ_API_KEY)
         else:
             self.groq_client = None
 
     async def get_file_content(self, owner: str, repo: str, path: str) -> str:
+        """
+        Retrieve raw file contents from a GitHub repository, trying the `main` branch and falling back to `master`.
+        
+        Parameters:
+            owner (str): Repository owner or organization.
+            repo (str): Repository name.
+            path (str): Path to the file within the repository.
+        
+        Returns:
+            str: The file contents when a successful (HTTP 200) response is received; an empty string if the file is not found or on any error.
+        """
         url = f"https://raw.githubusercontent.com/{owner}/{repo}/main/{path}"
         async with httpx.AsyncClient() as client:
             try:
@@ -28,6 +44,26 @@ class AnalyzeService:
             return ""
 
     def _get_prompt(self, owner, repo, path, content, category):
+        """
+        Constructs the Groq audit prompt for a DEEP LOGIC security analysis of a repository file.
+        
+        This prompt instructs the model to perform a focused security audit and to return a single valid JSON object describing findings. The `category` parameter adjusts the audit focus (e.g., logic, config, workflow, secrets); otherwise a general security and dependency audit is requested. The generated prompt embeds the repository context and file content and enforces the JSON output schema and severity taxonomy.
+        
+        Parameters:
+            owner (str): GitHub repository owner or organization.
+            repo (str): Repository name.
+            path (str): Path to the file within the repository.
+            content (str): Raw file content to be analyzed (included verbatim in the prompt).
+            category (str): Audit category that tailors the focus. Common values:
+                - "Logic": Broken access control, BOLA, injection, unsafe operations.
+                - "Config": Insecure CORS, exposed debug modes, weak crypto.
+                - "Workflow": Plain-text secret exposure in CI/CD, unpinned third-party actions.
+                - "Secrets": Actual credentials/API keys or dangerous .env.example misconfigurations.
+                - Any other value triggers a general security hygiene and dependency audit.
+        
+        Returns:
+            str: A formatted instruction prompt suitable for sending to the Groq chat completion API.
+        """
         return f"""
         You are a Senior Security Auditor performing a DEEP LOGIC audit on a {category} file: '{path}'.
         Repository Context: {owner}/{repo}
@@ -66,6 +102,18 @@ class AnalyzeService:
         """
 
     async def analyze_file(self, owner: str, repo: str, path: str, category: str = "General") -> dict:
+        """
+        Performs a security-focused analysis of a repository file and returns the parsed analysis result.
+        
+        Parameters:
+            owner (str): GitHub repository owner.
+            repo (str): GitHub repository name.
+            path (str): Path to the file within the repository.
+            category (str): Analysis category to tailor the audit (e.g., "Logic", "Config", "Workflow", "Secrets", or "General").
+        
+        Returns:
+            dict: On success, a parsed JSON object containing at least `file` and a `findings` array with analysis entries; on failure, a dictionary `{"error": "<message>", "file": "<path>"}` describing the problem.
+        """
         content = await self.get_file_content(owner, repo, path)
         if not content:
             return {"error": f"Could not fetch content for {path}", "file": path}

@@ -35,10 +35,37 @@ app.add_middleware(
 
 @app.get("/")
 async def root():
+    """
+    Return a simple health-check message indicating the API is running.
+    
+    Returns:
+        dict: A dictionary with a single key `"message"` whose value is `"LumeScan API is running"`.
+    """
     return {"message": "LumeScan API is running"}
 
 @app.post("/api/v1/scan/init")
 async def init_scan(request: ScanRequest):
+    """
+    Fetches a GitHub repository tree, classifies blob files by category, and returns a paginated subset of matching files.
+    
+    Parameters:
+        request (ScanRequest): Contains `repo_url` (GitHub repository URL) and `offset` (pagination start index).
+    
+    Returns:
+        dict: {
+            "owner": owner (str),
+            "repo": repo (str),
+            "files_found": list[dict]: paginated list of {"path": str, "category": str},
+            "total_found": int,
+            "offset": int,
+            "message": str | None
+        }
+    
+    Raises:
+        HTTPException: status 400 if `repo_url` is not a valid GitHub repository URL.
+        HTTPException: status equals GitHub response status if fetching the repository tree fails.
+        HTTPException: status 500 for other internal errors.
+    """
     match = GITHUB_URL_PATTERN.match(request.repo_url.rstrip("/"))
     if not match:
         raise HTTPException(status_code=400, detail="Invalid GitHub repository URL format")
@@ -94,11 +121,30 @@ async def init_scan(request: ScanRequest):
 
 @app.post("/api/v1/scan/analyze")
 async def analyze_repo(request: AnalyzeRequest):
+    """
+    Stream per-file analysis results for the given repository files.
+    
+    Parameters:
+        request (AnalyzeRequest): Request containing `owner`, `repo`, and `files`. Each item in `files` is expected to include at least `path` and `category`.
+    
+    Returns:
+        StreamingResponse: A response that yields newline-delimited JSON objects. Each yielded line is either an analysis result for a file or an error object with the shape `{"file": <path>, "error": <message>}`.
+    """
     from fastapi.responses import StreamingResponse
     import asyncio
     import json
     
     async def generate_results():
+        """
+        Yield per-file analysis results and per-file errors as newline-terminated JSON strings.
+        
+        Each iteration waits 1.5 seconds, invokes the analysis service for the current file, and yields the analysis result serialized as JSON with a trailing newline. If analyzing a file raises an exception, yields a JSON object containing the file path and the error message (also newline-terminated).
+        
+        Returns:
+            An async generator that yields strings. Each yielded string is either:
+              - the JSON-serialized analysis result followed by "\n", or
+              - the JSON-serialized error object {"file": <path>, "error": <message>} followed by "\n".
+        """
         for file_info in request.files:
             try:
                 # 1.5s safety delay between files
