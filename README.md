@@ -1,33 +1,24 @@
-# 🛰️ LumeScan
+# LumeScan 🛡️
 
-LumeScan is an automated deep-cycle security audit tool for GitHub repositories.
+Automated GitHub Security Auditor and Vulnerability Scanner.
 
-## 🚀 How to Run the Application
+## Features
 
-### 1. Start the Backend (FastAPI)
-Navigate to the `server` directory, activate the virtual environment, and start the Uvicorn server.
+- **Automated Analysis**: Scans repositories for common security vulnerabilities.
+- **Real-time Insights**: View security findings in a professional dashboard.
+- **AI-Powered**: Leverages Gemini AI for deep code analysis.
+- **Actionable Reports**: Provides clear remediation steps.
 
-```bash
-cd server
-source venv/bin/activate
-uvicorn app.main:app --reload --port 8000
-```
-The backend will be available at `http://localhost:8000`.
+## Project Structure
 
-### 2. Start the Frontend (Next.js)
-Navigate to the `web` directory and start the development server.
+- `web/`: Next.js frontend application.
+- `server/`: FastAPI backend service.
+- `local/`: Local development tools and scripts.
 
-```bash
-cd web
-npm run dev
-```
-The application will be available at `http://localhost:3000`.
+## Getting Started
 
-## 📂 Project Structure
-- `web/`: Next.js 16 (App Router) - Frontend Dashboard & Landing Page.
-- `server/`: FastAPI (Python 3.14) - Security Scan Logic.
+Refer to [CONTRIBUTING.md](./CONTRIBUTING.md) for setup instructions.
 
-## 🛡️ Core Features (Phase 1)
-- **High-Conversion Landing Page**: Cyber-security firm style.
-- **Cyber-Glow Dashboard**: Real-time terminal status logs.
-- **Automated Scanner**: Traverses GitHub repos for `package.json`, `Dockerfile`, and more.
+## License
+
+MIT
