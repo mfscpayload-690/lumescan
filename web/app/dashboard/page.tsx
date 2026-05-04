@@ -19,6 +19,13 @@ interface Finding {
   recommendation: string;
 }
 
+/**
+ * Client-side React component that provides a batched GitHub repository security scanning UI and orchestrates the scan workflow, status logs, and findings display.
+ *
+ * Renders controls to initialize and paginate scans, a live status log panel with copy-to-clipboard, and a findings matrix that shows categorized security issues with remediation copy actions.
+ *
+ * @returns A JSX element rendering the dashboard UI for configuring scans, viewing status logs, and browsing security findings.
+ */
 export default function DashboardPage() {
   const [repoUrl, setRepoUrl] = useState('');
   const [logs, setLogs] = useState<LogEntry[]>([]);
