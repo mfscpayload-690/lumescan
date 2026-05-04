@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Terminal, ShieldCheck, Zap, AlertTriangle, Copy, Download, FileDown, FileCode, FileText, Square, Play } from 'lucide-react';
+import { Terminal, ShieldCheck, Zap, AlertTriangle, Copy, Download, FileDown, FileCode, FileText, Square, Play, Star, GitFork, Clock, Shield, Code } from 'lucide-react';
 
 interface LogEntry {
   id: string;
@@ -35,6 +35,7 @@ export default function DashboardPage() {
   const [isScanning, setIsScanning] = useState(false);
   const [offset, setOffset] = useState(0);
   const [totalFound, setTotalFound] = useState(0);
+  const [repoMetadata, setRepoMetadata] = useState<any>(null);
   const logEndRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -91,6 +92,7 @@ export default function DashboardPage() {
 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (isScanning) return; // Prevent accidental restarts
     executeScan(0);
   };
 
@@ -126,6 +128,7 @@ export default function DashboardPage() {
       const data = await response.json();
       setTotalFound(data.total_found);
       setOffset(data.offset);
+      setRepoMetadata(data.metadata);
       
       addLog(`Found ${data.total_found} target files.`, 'info');
       if (data.message) {
@@ -216,7 +219,8 @@ export default function DashboardPage() {
       addLog('Full security audit complete.', 'success');
     } catch (err) {
       if ((err as any).name === 'AbortError') {
-        addLog('Security audit terminated by user.', 'warning');
+        addLog('Security audit terminated. Displaying results found so far.', 'warning');
+        // Do not clear findings here, keep what we have
       } else {
         addLog(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`, 'error');
       }
@@ -361,10 +365,73 @@ export default function DashboardPage() {
                 <li>• Workflows (CI/CD)</li>
               </ul>
             </div>
+
+            {/* Repository Pulse */}
+            {repoMetadata && (
+              <div className="p-6 bg-zinc-900/50 border border-zinc-800 rounded-lg animate-in fade-in slide-in-from-left-4 duration-500">
+                <h2 className="text-sm font-semibold text-blue-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+                  <Zap size={14} /> REPOSITORY PULSE
+                </h2>
+                
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-3 bg-black border border-zinc-800 rounded flex flex-col gap-1">
+                      <div className="text-zinc-500 flex items-center gap-1.5 text-[10px] uppercase font-bold">
+                        <Star size={10} className="text-amber-400" /> Stars
+                      </div>
+                      <div className="text-lg font-bold text-zinc-200 tracking-tighter">
+                        {repoMetadata.stars?.toLocaleString() || '0'}
+                      </div>
+                    </div>
+                    <div className="p-3 bg-black border border-zinc-800 rounded flex flex-col gap-1">
+                      <div className="text-zinc-500 flex items-center gap-1.5 text-[10px] uppercase font-bold">
+                        <GitFork size={10} className="text-blue-400" /> Forks
+                      </div>
+                      <div className="text-lg font-bold text-zinc-200 tracking-tighter">
+                        {repoMetadata.forks?.toLocaleString() || '0'}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-zinc-500 flex items-center gap-2 font-bold uppercase tracking-tighter">
+                        <Code size={12} className="text-emerald-500" /> Language
+                      </span>
+                      <span className="text-zinc-300 font-mono">{repoMetadata.language || 'Multi'}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-zinc-500 flex items-center gap-2 font-bold uppercase tracking-tighter">
+                        <Shield size={12} className="text-purple-500" /> License
+                      </span>
+                      <span className="text-zinc-300 font-mono truncate max-w-[120px]" title={repoMetadata.license}>
+                        {repoMetadata.license}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-zinc-500 flex items-center gap-2 font-bold uppercase tracking-tighter">
+                        <Clock size={12} className="text-rose-500" /> Last Pulse
+                      </span>
+                      <span className="text-zinc-300 font-mono">
+                        {new Date(repoMetadata.updated_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {repoMetadata.description && (
+                    <div className="pt-3 border-t border-zinc-800">
+                      <p className="text-[10px] text-zinc-500 italic leading-relaxed line-clamp-2">
+                        "{repoMetadata.description}"
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Status Log */}
-          <div className="md:col-span-2 bg-[#0a0a0a] border border-[#333] rounded-xl overflow-hidden flex flex-col h-[600px]">
+          <div className="md:col-span-2 bg-[#0a0a0a] border border-[#333] rounded-xl overflow-hidden flex flex-col h-[800px]">
             <div className="bg-[#111] border-b border-[#333] p-4 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Terminal size={18} className="text-[#10b981]" />
