@@ -1,31 +1,72 @@
 @import "tailwindcss";
 
-:root {
-  --background: #000000;
-  --foreground: #ffffff;
-  
+@theme {
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-mono: "Fira Code", monospace;
+  --color-background: #09090b;
+  --color-foreground: #f4f4f5;
   --color-emerald-500: #10b981;
-  --color-amber-500: #f59e0b;
-  --color-rose-500: #f43f5e;
-  
-  --font-mono: "JetBrains Mono", "Fira Code", monospace;
+  --color-emerald-400: #34d399;
 }
 
-body {
-  background-color: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-mono);
+@layer base {
+  body {
+    background-color: var(--color-background);
+    background-image:
+      radial-gradient(at 0% 0%, rgba(16, 185, 129, 0.03) 0px, transparent 50%),
+      radial-gradient(at 100% 0%, rgba(16, 185, 129, 0.02) 0px, transparent 50%);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
 }
 
-/* Custom Cyber-Glow effects */
-.cyber-glow {
-  box-shadow: 0 0 15px rgba(16, 185, 129, 0.3);
+@layer utilities {
+  .glass {
+    background: rgba(9, 9, 11, 0.6);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  .glass-emerald {
+    background: rgba(16, 185, 129, 0.05);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+  }
+
+  .text-gradient {
+    background: linear-gradient(to bottom right, #fff 30%, rgba(255, 255, 255, 0.5));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .cyber-glow {
+    box-shadow: 0 0 20px rgba(16, 185, 129, 0.2);
+  }
 }
 
-.cyber-glow-amber {
-  box-shadow: 0 0 15px rgba(245, 158, 11, 0.3);
+/* Smooth Scroll */
+html {
+  scroll-behavior: smooth;
 }
 
-.cyber-glow-rose {
-  box-shadow: 0 0 15px rgba(244, 63, 94, 0.3);
+/* Animations */
+@keyframes float {
+  0% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
+
+  100% {
+    transform: translateY(0px);
+  }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
 }
