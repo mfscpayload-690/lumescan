@@ -1,5 +1,8 @@
 # LumeScan 🛡️
 
+[![GitHub Repository](https://img.shields.io/badge/GitHub-Repository-blue?logo=github)](https://github.com/mfscpayload-690/lumescan)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 Automated GitHub Security Auditor and Vulnerability Scanner.
 
 ## Features
