@@ -1,0 +1,31 @@
+@import "tailwindcss";
+
+:root {
+  --background: #000000;
+  --foreground: #ffffff;
+  
+  --color-emerald-500: #10b981;
+  --color-amber-500: #f59e0b;
+  --color-rose-500: #f43f5e;
+  
+  --font-mono: "JetBrains Mono", "Fira Code", monospace;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-mono);
+}
+
+/* Custom Cyber-Glow effects */
+.cyber-glow {
+  box-shadow: 0 0 15px rgba(16, 185, 129, 0.3);
+}
+
+.cyber-glow-amber {
+  box-shadow: 0 0 15px rgba(245, 158, 11, 0.3);
+}
+
+.cyber-glow-rose {
+  box-shadow: 0 0 15px rgba(244, 63, 94, 0.3);
+}
