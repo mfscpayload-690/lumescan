@@ -1,0 +1,733 @@
+'use client';
+
+import React, { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
+import { 
+  Terminal, ShieldCheck, Zap, AlertTriangle, Copy, Download, 
+  FileDown, FileCode, FileText, Square, Play, Star, GitFork, 
+  Clock, Shield, Code, Cpu, Globe, Activity, Timer, Coffee 
+} from 'lucide-react';
+
+interface LogEntry {
+  id: string;
+  type: 'info' | 'warning' | 'error' | 'success' | 'system' | 'boot';
+  message: string;
+  timestamp: string;
+}
+
+const Github = ({ size = 24, ...props }: { size?: number } & React.SVGProps<SVGSVGElement>) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    {...props}
+  >
+    <path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.26 1.23-.26 1.86v4" />
+    <path d="M9 18c-4.51 2-5-2-7-2" />
+  </svg>
+);
+
+interface Finding {
+  file: string;
+  category?: string;
+  type: string;
+  severity: 'Critical' | 'High' | 'Medium' | 'Low' | 'Informational';
+  description: string;
+  recommendation: string;
+}
+
+interface WorkstationProps {
+  initialRepo?: string;
+}
+
+export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
+  const [repoUrl, setRepoUrl] = useState(initialRepo || '');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [findings, setFindings] = useState<Finding[]>([]);
+  const [isScanning, setIsScanning] = useState(false);
+  const [offset, setOffset] = useState(0);
+  const [totalFound, setTotalFound] = useState(0);
+  const [repoMetadata, setRepoMetadata] = useState<any>(null);
+  const [scanStartTime, setScanStartTime] = useState<number | null>(null);
+  const [elapsedTime, setElapsedTime] = useState(0);
+  const logEndRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  const addLog = (message: string, type: LogEntry['type'] = 'info') => {
+    const newLog: LogEntry = {
+      id: Math.random().toString(36).substring(7),
+      message,
+      type,
+      timestamp: new Date().toLocaleTimeString(),
+    };
+    setLogs((prev) => [...prev, newLog]);
+  };
+
+  useEffect(() => {
+    logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [logs]);
+
+  const hasBooted = useRef(false);
+  const initialScanTriggered = useRef(false);
+
+  // System Boot Sequence
+  useEffect(() => {
+    if (!hasBooted.current) {
+      const bootSequence = [
+        { msg: 'LumeScan OS v1.0.4 initializing...', type: 'info' as const, delay: 100 },
+        { msg: 'Establishing encrypted neural link to Groq API...', type: 'info' as const, delay: 600 },
+        { msg: 'Subsystems Online: Logic_Guard, Config_Sentry, Secret_Vault.', type: 'success' as const, delay: 1100 },
+        { msg: 'CONNECTION SECURE. Ready for deployment.', type: 'success' as const, delay: 1600 }
+      ];
+
+      bootSequence.forEach((item) => {
+        setTimeout(() => {
+          addLog(item.msg, item.msg.includes('SECURE') || item.msg.includes('Online') ? 'success' : 'info');
+        }, item.delay);
+      });
+
+      hasBooted.current = true;
+    }
+
+    // If deep linked, auto-trigger scan after boot (only once)
+    if (initialRepo && !initialScanTriggered.current) {
+      setTimeout(() => {
+        if (!initialScanTriggered.current) {
+          executeScan(0, initialRepo);
+          initialScanTriggered.current = true;
+        }
+      }, 2000);
+    }
+  }, [initialRepo]);
+
+  // Progressive Search Logic
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(async () => {
+      if (repoUrl && repoUrl.length >= 2 && !repoUrl.startsWith('http')) {
+        try {
+          const apiBase = process.env.NEXT_PUBLIC_API_BASE || 'http://127.0.0.1:8000';
+          const res = await fetch(`${apiBase}/api/v1/search/repos?q=${encodeURIComponent(repoUrl)}`);
+          if (!res.ok) throw new Error('Search failed');
+          const data = await res.json();
+          setSearchResults(data.items || []);
+          setShowDropdown(data.items?.length > 0);
+        } catch (error) {
+          console.error("Search failed:", error);
+          setSearchResults([]);
+          setShowDropdown(false);
+        }
+      } else {
+        setSearchResults([]);
+        setShowDropdown(false);
+      }
+    }, 500);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [repoUrl]);
+
+  // Timer Logic
+  useEffect(() => {
+    let interval: any;
+    if (isScanning) {
+      if (!scanStartTime) setScanStartTime(Date.now());
+      interval = setInterval(() => {
+        setElapsedTime(Math.floor((Date.now() - (scanStartTime || Date.now())) / 1000));
+      }, 1000);
+    } else {
+      clearInterval(interval);
+    }
+    return () => clearInterval(interval);
+  }, [isScanning, scanStartTime]);
+
+  // Reset timer on new scan
+  useEffect(() => {
+    if (isScanning && offset === 0) {
+      setScanStartTime(Date.now());
+      setElapsedTime(0);
+    }
+  }, [isScanning, offset]);
+
+  // Close dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isScanning) return;
+    
+    const trimmedRepo = repoUrl.trim();
+    if (!trimmedRepo) {
+      addLog('Validation Error: Repository path cannot be empty.', 'error');
+      return;
+    }
+    
+    executeScan(0);
+  };
+
+  const executeScan = async (currentOffset: number = 0, targetRepo: string = repoUrl) => {
+    setIsScanning(true);
+    abortControllerRef.current = new AbortController();
+    const signal = abortControllerRef.current.signal;
+
+    if (currentOffset === 0) {
+      setFindings([]);
+      setLogs([]);
+      setOffset(0);
+      setTotalFound(0);
+    }
+
+    addLog(`Initiating scan for: ${targetRepo} (Batch: ${currentOffset / 50 + 1})`, 'info');
+
+    try {
+      addLog('Validating repository structure...', 'info');
+
+      const apiBase = process.env.NEXT_PUBLIC_API_BASE || 'http://127.0.0.1:8000';
+      const response = await fetch(`${apiBase}/api/v1/scan/init`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ repo_url: targetRepo, offset: currentOffset }),
+        signal
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to initialize scan');
+      }
+
+      const data = await response.json();
+      setTotalFound(data.total_found);
+      setOffset(data.offset);
+      setRepoMetadata(data.metadata);
+
+      addLog(`Found ${data.total_found} target files.`, 'info');
+      if (data.message) {
+        addLog(data.message, 'warning');
+      }
+
+      addLog('Prioritizing and categorizing tree...', 'info');
+      data.files_found.forEach((f: any) => {
+        addLog(`Target: ${f.path} [${f.category}]`, 'success');
+      });
+
+      if (data.files_found.length > 0) {
+        if (signal.aborted) return;
+        addLog(`Initiating prioritized AI analysis for ${data.files_found.length} files...`, 'info');
+
+        const analyzeResponse = await fetch(`${apiBase}/api/v1/scan/analyze`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            owner: data.owner,
+            repo: data.repo,
+            files: data.files_found
+          }),
+          signal
+        });
+
+        if (!analyzeResponse.ok) {
+          throw new Error('AI Analysis failed');
+        }
+
+        const reader = analyzeResponse.body?.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        if (reader) {
+          while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || '';
+
+            for (const line of lines) {
+              if (!line.trim()) continue;
+              try {
+                const result = JSON.parse(line);
+
+                if (result.error) {
+                  addLog(`Error analyzing ${result.file}: ${result.error}`, 'error');
+                } else if (result.findings && result.findings.length > 0) {
+                  const newFindings = result.findings.map((finding: any) => ({
+                    file: result.file,
+                    category: result.category,
+                    ...finding
+                  }));
+
+                  const severityWeight: Record<string, number> = {
+                    'Critical': 5,
+                    'High': 4,
+                    'Medium': 3,
+                    'Low': 2,
+                    'Informational': 1
+                  };
+
+                  setFindings(prev => {
+                    const combined = [...prev, ...newFindings];
+                    return combined.sort((a, b) =>
+                      (severityWeight[b.severity] || 0) - (severityWeight[a.severity] || 0)
+                    );
+                  });
+
+                  newFindings.forEach((f: any) => {
+                    addLog(`[${f.severity}] ${result.file} (${result.category}): ${f.description}`,
+                      f.severity === 'Critical' || f.severity === 'High' ? 'error' : 'warning');
+                  });
+                } else {
+                  addLog(`Analysis for ${result.file} (${result.category}): No critical issues.`, 'success');
+                }
+              } catch (e) {
+                console.error("Error parsing stream chunk:", e);
+              }
+            }
+          }
+        }
+      }
+
+      addLog('Full security audit complete.', 'success');
+    } catch (err) {
+      if ((err as any).name === 'AbortError') {
+        addLog('Security audit terminated. Displaying results found so far.', 'warning');
+      } else {
+        addLog(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`, 'error');
+      }
+    } finally {
+      setIsScanning(false);
+      abortControllerRef.current = null;
+    }
+  };
+
+  const handleStopScan = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      addLog('Terminating active audit stream...', 'warning');
+    }
+  };
+
+  const exportResults = (format: 'xml' | 'yaml' | 'markdown') => {
+    let content = '';
+    const timestamp = new Date().toISOString();
+    const promptHeader = `### SECURITY REMEDIATION TASK ###\nRepository: ${repoUrl}\nGenerated: ${timestamp}\nTotal Issues: ${findings.length}\n\nINSTRUCTIONS FOR AI AGENT:\nYou are an expert Security Engineer. Analyze the following ${format.toUpperCase()} audit data from LumeScan and provide a detailed implementation plan and code patches to remediate these vulnerabilities. Prioritize 'Critical' and 'High' severity items.\n\n`;
+
+    if (format === 'xml') {
+      const xmlFindings = findings.map(f => `
+  <vulnerability>
+    <file>${f.file}</file>
+    <severity>${f.severity}</severity>
+    <category>${f.category}</category>
+    <type>${f.type}</type>
+    <description>${f.description}</description>
+    <recommendation>${f.recommendation}</recommendation>
+  </vulnerability>`).join('');
+      content = `${promptHeader}<security_audit>\n  <metadata>\n    <repo>${repoUrl}</repo>\n    <count>${findings.length}</count>\n  </metadata>\n  <findings>${xmlFindings}\n  </findings>\n</security_audit>`;
+    } else if (format === 'yaml') {
+      const yamlFindings = findings.map(f => `  - file: "${f.file}"
+    severity: "${f.severity}"
+    category: "${f.category}"
+    type: "${f.type}"
+    description: "${f.description.replace(/"/g, "'")}"
+    recommendation: "${f.recommendation.replace(/"/g, "'")}"`).join('\n');
+      content = `${promptHeader}security_audit:\n  repository: "${repoUrl}"\n  findings:\n${yamlFindings}`;
+    } else {
+      const mdFindings = findings.map(f => `### [${f.severity}] ${f.file}\n- **Category**: ${f.category}\n- **Type**: ${f.type}\n- **Description**: ${f.description}\n- **Remediation**: ${f.recommendation}\n`).join('\n');
+      content = `${promptHeader}# Security Audit Report: ${repoUrl}\n\n${mdFindings}`;
+    }
+
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `lumescan_audit_${new Date().getTime()}.${format === 'markdown' ? 'md' : format}`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    addLog(`Exported ${format.toUpperCase()} AI Package.`, 'success');
+  };
+
+  return (
+    <div className="min-h-screen bg-[#0c0c0e] text-white p-6">
+      <div className="max-w-6xl mx-auto">
+        {/* Header Scrim */}
+        <div className="fixed top-0 left-0 right-0 h-32 bg-gradient-to-b from-black to-transparent z-30 pointer-events-none opacity-80" />
+        
+        <header className="sticky top-4 z-40 flex items-center justify-between mb-12 bg-zinc-900/50 backdrop-blur-xl backdrop-saturate-150 border border-white/10 px-6 py-4 rounded-2xl shadow-2xl shadow-black/50 transition-all">
+          <Link href="/welcome" className="flex items-center gap-3 group">
+            <img src="/lumescan-logo.png" alt="LumeScan Logo" className="w-10 h-10 object-contain rounded-lg group-hover:scale-105 transition-transform" />
+            <h1 className="text-2xl font-bold tracking-tighter text-white group-hover:text-emerald-400 transition-colors">LUME<span className="text-emerald-500">SCAN</span></h1>
+          </Link>
+          <div className="flex items-center gap-4">
+            <a
+              href="https://github.com/mfscpayload-690/lumescan"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="p-2 bg-zinc-900 border border-zinc-800 rounded-lg text-zinc-400 hover:text-white hover:border-zinc-600 transition-all group"
+              title="View Source on GitHub"
+            >
+              <Github size={20} />
+            </a>
+            <a
+              href="https://buymeacoffee.com/mfscpayload690"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="p-2 bg-zinc-900 border border-zinc-800 rounded-lg text-amber-400 hover:text-amber-300 hover:border-amber-500/50 transition-all flex items-center gap-2 group"
+              title="Support LumeScan"
+            >
+              <Coffee size={20} />
+              <span className="text-[10px] font-bold uppercase hidden sm:block">Support</span>
+            </a>
+          </div>
+        </header>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Controls */}
+          <div className="lg:col-span-1 space-y-6">
+            <div className="p-6 bg-zinc-900/40 border border-zinc-800/60 rounded-xl backdrop-blur-md relative z-20">
+              <h2 className="text-sm font-semibold text-emerald-500 uppercase tracking-wider mb-4">Repository Config</h2>
+              <form onSubmit={handleFormSubmit} className="space-y-4">
+                <div className="relative" ref={dropdownRef}>
+                  <label className="block text-xs text-zinc-400 font-bold mb-2">GITHUB REPO (URL OR OWNER/REPO)</label>
+                  <input
+                    type="text"
+                    value={repoUrl}
+                    onChange={(e) => setRepoUrl(e.target.value)}
+                    onFocus={() => repoUrl.length >= 2 && !repoUrl.startsWith('http') && setShowDropdown(true)}
+                    placeholder="e.g. owner/repo"
+                    className="w-full bg-zinc-950/50 border border-zinc-800 px-4 py-3 rounded-lg text-sm focus:outline-none focus:border-emerald-500 transition-all cyber-glow placeholder:text-zinc-600"
+                  />
+
+                  {/* Results Dropdown */}
+                  {showDropdown && searchResults.length > 0 && (
+                    <div className="absolute z-50 w-full mt-2 bg-zinc-900 border border-zinc-800 rounded-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+                      {searchResults.map((result, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => {
+                            setRepoUrl(result.full_name);
+                            setShowDropdown(false);
+                          }}
+                          className="w-full text-left px-4 py-3 hover:bg-zinc-800 border-b border-zinc-800 last:border-0 transition-colors"
+                        >
+                          <div className="text-sm font-bold text-emerald-400">{result.full_name}</div>
+                          {result.description && (
+                            <div className="text-[10px] text-gray-500 truncate">{result.description}</div>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {isScanning ? (
+                  <button
+                    type="button"
+                    onClick={handleStopScan}
+                    className="w-full py-3 bg-rose-500 text-white font-bold rounded hover:bg-rose-600 transition-all flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(244,63,94,0.3)]"
+                  >
+                    <Square size={16} fill="white" /> STOP AUDIT
+                  </button>
+                ) : (
+                  <button
+                    type="submit"
+                    disabled={!repoUrl.trim()}
+                    className="w-full py-3 bg-emerald-500 text-black font-bold rounded hover:bg-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+                  >
+                    <Play size={16} fill="black" /> INITIALIZE AUDIT
+                  </button>
+                )}
+              </form>
+              {totalFound > offset + 50 && !isScanning && (
+                <button
+                  onClick={() => executeScan(offset + 50)}
+                  className="w-full mt-4 py-3 bg-transparent border border-emerald-500 text-emerald-500 font-bold rounded hover:bg-emerald-500/10 transition-all"
+                >
+                  SCAN NEXT BATCH ({offset + 51}-{Math.min(offset + 100, totalFound)})
+                </button>
+              )}
+            </div>
+
+            <div className="p-6 bg-zinc-900/40 border border-zinc-800/60 rounded-xl backdrop-blur-md relative z-10">
+              <h2 className="text-sm font-semibold text-zinc-300 uppercase tracking-wider mb-3">Audit Scope</h2>
+              <ul className="text-xs space-y-2 text-zinc-400">
+                <li>• Logic (Python/JS Controllers)</li>
+                <li>• Config (Dependencies/CORS)</li>
+                <li>• Secrets (.env/Keys)</li>
+                <li>• Workflows (CI/CD)</li>
+              </ul>
+            </div>
+
+            {/* Repository Pulse */}
+            {repoMetadata ?
+              <div className="p-6 bg-zinc-900/50 border border-zinc-800 rounded-lg animate-in fade-in slide-in-from-left-4 duration-500">
+                <h2 className="text-sm font-semibold text-blue-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+                  <Zap size={14} /> REPOSITORY PULSE
+                </h2>
+
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-3 bg-black border border-zinc-800 rounded flex flex-col gap-1">
+                      <div className="text-zinc-500 flex items-center gap-1.5 text-[10px] uppercase font-bold">
+                        <Star size={10} className="text-amber-400" /> Stars
+                      </div>
+                      <div className="text-lg font-bold text-zinc-200 tracking-tighter">
+                        {repoMetadata.stars?.toLocaleString() || '0'}
+                      </div>
+                    </div>
+                    <div className="p-3 bg-black border border-zinc-800 rounded flex flex-col gap-1">
+                      <div className="text-zinc-500 flex items-center gap-1.5 text-[10px] uppercase font-bold">
+                        <GitFork size={10} className="text-blue-400" /> Forks
+                      </div>
+                      <div className="text-lg font-bold text-zinc-200 tracking-tighter">
+                        {repoMetadata.forks?.toLocaleString() || '0'}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-zinc-500 flex items-center gap-2 font-bold uppercase tracking-tighter">
+                        <Code size={12} className="text-emerald-500" /> Language
+                      </span>
+                      <span className="text-zinc-300 font-mono">{repoMetadata.language || 'Multi'}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-zinc-500 flex items-center gap-2 font-bold uppercase tracking-tighter">
+                        <Shield size={12} className="text-purple-500" /> License
+                      </span>
+                      <span className="text-zinc-300 font-mono truncate max-w-[120px]" title={repoMetadata.license}>
+                        {repoMetadata.license}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-zinc-500 flex items-center gap-2 font-bold uppercase tracking-tighter">
+                        <Clock size={12} className="text-rose-500" /> Last Pulse
+                      </span>
+                      <span className="text-zinc-300 font-mono">
+                        {new Date(repoMetadata.updated_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                  </div>
+
+                  {repoMetadata.description && (
+                    <div className="pt-3 border-t border-zinc-800">
+                      <p className="text-[10px] text-zinc-500 italic leading-relaxed line-clamp-2">
+                        &quot;{repoMetadata.description}&quot;
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            :
+              <div className="p-6 bg-zinc-900/50 border border-zinc-800 rounded-lg space-y-6">
+                <h2 className="text-sm font-semibold text-emerald-500 uppercase tracking-wider flex items-center gap-2">
+                  <Cpu size={14} className="animate-pulse" /> WORKSTATION COMMAND
+                </h2>
+
+                {/* Specs Grid */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <div className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest">Neural Core</div>
+                    <div className="text-[11px] text-zinc-300 font-mono truncate">Llama-3.3-70b-Groq</div>
+                  </div>
+                  <div className="space-y-1 text-right">
+                    <div className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest">Security Protocol</div>
+                    <div className="text-[11px] text-zinc-300 font-mono">NDJSON / AES-256-V2</div>
+                  </div>
+                </div>
+
+                {/* Threat Meter */}
+                <div className="pt-4 border-t border-zinc-800/50">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Threat Level</span>
+                    <span className={`text-[10px] font-bold uppercase ${findings.length === 0 ? 'text-emerald-500' :
+                      findings.some(f => f.severity === 'Critical') ? 'text-rose-500 animate-pulse' : 'text-amber-500'
+                      }`}>
+                      {findings.length === 0 ? 'SECURE' : findings.some(f => f.severity === 'Critical') ? 'CRITICAL RISK' : 'ELEVATED'}
+                    </span>
+                  </div>
+                  <div className="h-2 w-full bg-black rounded-full overflow-hidden border border-zinc-800">
+                    <div
+                      className={`h-full transition-all duration-500 ${findings.length === 0 ? 'bg-emerald-500 w-0' :
+                        findings.some(f => f.severity === 'Critical') ? 'bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.5)]' : 'bg-amber-500'
+                        }`}
+                      style={{ width: `${Math.min((findings.length * 10), 100)}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Status & Timer Bar */}
+                <div className="flex items-center justify-between pt-4 border-t border-zinc-800/50">
+                  <div className="flex items-center gap-2">
+                    <div className={`w-2 h-2 rounded-full ${isScanning ? 'bg-blue-500 animate-pulse' : 'bg-emerald-500'} shadow-[0_0_8px_rgba(16,185,129,0.3)]`} />
+                    <span className="text-[10px] text-zinc-400 font-bold tracking-widest uppercase">
+                      {isScanning ? 'SCANNING...' : 'SYSTEM: IDLE'}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Timer size={12} className="text-zinc-500" />
+                    <span className="text-xs text-zinc-300 font-mono">
+                      {Math.floor(elapsedTime / 60).toString().padStart(2, '0')}:
+                      {(elapsedTime % 60).toString().padStart(2, '0')}s
+                    </span>
+                  </div>
+                </div>
+              </div>
+            }
+          </div>
+
+          {/* Status Log */}
+          <div className="md:col-span-2 bg-[#0c0c0c] border border-zinc-800 rounded-xl overflow-hidden flex flex-col h-[700px]">
+            <div className="bg-[#111] border-b border-[#333] p-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Terminal size={18} className="text-[#10b981]" />
+                <span className="font-mono text-sm font-bold tracking-widest text-zinc-300">STATUS LOG</span>
+              </div>
+              <button
+                onClick={() => {
+                  const logText = logs.map(l => `[${l.timestamp}] ${l.message}`).join('\n');
+                  navigator.clipboard.writeText(logText);
+                  addLog('Logs copied to clipboard!', 'success');
+                }}
+                className="flex items-center gap-2 text-xs font-mono text-[#666] hover:text-[#10b981] transition-colors group"
+                title="Copy Logs"
+              >
+                <Copy size={14} className="group-hover:scale-110 transition-transform" />
+                <span>COPY</span>
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6 font-mono text-sm space-y-2 custom-scrollbar">
+              {logs.map((log, idx) => (
+                <div key={log.id} className="flex gap-3">
+                  <span className="text-zinc-500 shrink-0">[{log.timestamp}]</span>
+                  <span className={`
+                      ${log.type === 'success' ? 'text-emerald-500' : ''}
+                      ${log.type === 'warning' ? 'text-amber-500' : ''}
+                      ${log.type === 'error' ? 'text-rose-500' : ''}
+                      ${log.type === 'info' ? 'text-blue-400' : ''}
+                    `}>
+                    {log.message}
+                    {idx === logs.length - 1 && (
+                      <span className="inline-block w-1.5 h-4 bg-emerald-500 ml-1 animate-[pulse_1s_infinite] align-middle" />
+                    )}
+                  </span>
+                </div>
+              ))}
+              <div ref={logEndRef} />
+            </div>
+          </div>
+        </div>
+
+        {/* Result Matrix */}
+        {findings.length > 0 && (
+          <div className="mt-12 animate-in fade-in slide-in-from-bottom-4 duration-1000">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold flex items-center gap-2">
+                <AlertTriangle className="text-amber-500" />
+                SECURITY FINDINGS <span className="text-xs bg-zinc-800 px-2 py-1 rounded text-zinc-400 font-mono">{findings.length} ISSUES</span>
+              </h2>
+
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-zinc-500 font-mono hidden md:block">EXPORT AI PACKAGE:</span>
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => exportResults('xml')}
+                    className="p-2 bg-zinc-900 border border-zinc-800 rounded hover:border-emerald-500/50 text-zinc-400 hover:text-emerald-500 transition-all flex items-center gap-2 text-[10px] font-bold"
+                    title="Export XML"
+                  >
+                    <FileCode size={14} /> XML
+                  </button>
+                  <button
+                    onClick={() => exportResults('yaml')}
+                    className="p-2 bg-zinc-900 border border-zinc-800 rounded hover:border-emerald-500/50 text-zinc-400 hover:text-emerald-500 transition-all flex items-center gap-2 text-[10px] font-bold"
+                    title="Export YAML"
+                  >
+                    <FileDown size={14} /> YAML
+                  </button>
+                  <button
+                    onClick={() => exportResults('markdown')}
+                    className="p-2 bg-zinc-900 border border-zinc-800 rounded hover:border-emerald-500/50 text-zinc-400 hover:text-emerald-500 transition-all flex items-center gap-2 text-[10px] font-bold"
+                    title="Export Markdown"
+                  >
+                    <FileText size={14} /> MD
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {findings.map((finding, idx) => (
+                <div key={idx} className="group p-5 bg-[#0a0a0a] border border-[#333] rounded-xl hover:border-emerald-500/50 transition-all duration-300 relative overflow-hidden">
+                  {/* Category Accent */}
+                  <div className={`absolute top-0 right-0 w-24 h-24 -mr-12 -mt-12 opacity-5 rotate-45 
+                    ${finding.category === 'Logic' ? 'bg-blue-500' : 'bg-emerald-500'}`}
+                  />
+
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-[#666] font-mono tracking-widest uppercase">FILE PATH</span>
+                        <span className={`text-[8px] px-1.5 py-0.5 rounded border border-zinc-700 font-bold uppercase tracking-tighter
+                          ${finding.category === 'Logic' ? 'text-blue-400 border-blue-500/30' : 'text-emerald-400 border-emerald-500/30'}`}>
+                          {finding.category || 'GENERAL'}
+                        </span>
+                      </div>
+                      <code className="text-xs text-emerald-400 truncate max-w-[250px]">{finding.file}</code>
+                    </div>
+                    <span className={`
+                      px-3 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase
+                      ${finding.severity === 'Critical' ? 'bg-rose-500/20 text-rose-500 border border-rose-500/50 shadow-[0_0_15px_rgba(244,63,94,0.3)]' : ''}
+                      ${finding.severity === 'High' ? 'bg-orange-500/20 text-orange-500 border border-orange-500/50' : ''}
+                      ${finding.severity === 'Medium' ? 'bg-amber-500/20 text-amber-500 border border-amber-500/50' : ''}
+                      ${finding.severity === 'Low' ? 'bg-blue-500/20 text-blue-500 border border-blue-500/50' : ''}
+                      ${finding.severity === 'Informational' ? 'bg-zinc-500/20 text-zinc-500 border border-zinc-500/50' : ''}
+                    `}>
+                      {finding.severity}
+                    </span>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div>
+                      <h4 className="text-xs font-bold text-zinc-400 mb-1">DETECTION</h4>
+                      <p className="text-sm text-zinc-300 leading-relaxed">{finding.description}</p>
+                    </div>
+
+                    <div className="p-3 bg-emerald-500/5 border border-emerald-500/20 rounded-lg group/rem relative">
+                      <h4 className="text-[10px] font-bold text-emerald-500 mb-1 uppercase tracking-tighter">REMEDIATION</h4>
+                      <p className="text-xs text-emerald-200/70">{finding.recommendation}</p>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(finding.recommendation);
+                          addLog(`Copied remediation for ${finding.file}`, 'success');
+                        }}
+                        className="absolute top-2 right-2 opacity-0 group-hover/rem:opacity-100 transition-opacity text-emerald-500 hover:scale-110"
+                        title="Copy Recommendation"
+                      >
+                        <Copy size={12} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};

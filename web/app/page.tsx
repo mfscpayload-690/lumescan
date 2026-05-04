@@ -1,9 +1,5 @@
-import { Hero } from '@/landing/Hero';
+import { Workstation } from '@/components/Workstation';
 
-export default function Home() {
-  return (
-    <main className="bg-black min-h-screen">
-      <Hero />
-    </main>
-  );
+export default function HomePage() {
+  return <Workstation />;
 }
