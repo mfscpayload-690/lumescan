@@ -53,6 +53,7 @@ export default function DashboardPage() {
       setFindings([]);
       setLogs([]);
       setOffset(0);
+      setTotalFound(0);
     }
     
     addLog(`Initiating scan for: ${repoUrl} (Batch: ${currentOffset / 50 + 1})`, 'info');
@@ -60,7 +61,8 @@ export default function DashboardPage() {
     try {
       addLog('Validating repository structure...', 'info');
       
-      const response = await fetch('http://127.0.0.1:8000/api/v1/scan/init', {
+      const apiBase = process.env.NEXT_PUBLIC_API_BASE || 'http://127.0.0.1:8000';
+      const response = await fetch(`${apiBase}/api/v1/scan/init`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ repo_url: repoUrl, offset: currentOffset }),
@@ -87,7 +89,8 @@ export default function DashboardPage() {
       if (data.files_found.length > 0) {
         addLog(`Initiating prioritized AI analysis for ${data.files_found.length} files...`, 'info');
         
-        const analyzeResponse = await fetch('http://127.0.0.1:8000/api/v1/scan/analyze', {
+        const apiBase = process.env.NEXT_PUBLIC_API_BASE || 'http://127.0.0.1:8000';
+        const analyzeResponse = await fetch(`${apiBase}/api/v1/scan/analyze`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
