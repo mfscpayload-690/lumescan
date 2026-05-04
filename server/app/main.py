@@ -102,4 +102,4 @@ async def analyze_repo(request: AnalyzeRequest):
             except Exception as e:
                 yield f"{json.dumps({'file': file_info['path'], 'error': str(e)})}\n"
     
-    return StreamingResponse(generate_results(), media_type="text/event-stream")
+    return StreamingResponse(generate_results(), media_type="application/x-ndjson")
