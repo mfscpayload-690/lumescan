@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Terminal, ShieldCheck, Zap, AlertTriangle, Copy } from 'lucide-react';
+import { Terminal, ShieldCheck, Zap, AlertTriangle, Copy, Download, FileDown, FileCode, FileText, Square, Play } from 'lucide-react';
 
 interface LogEntry {
   id: string;
@@ -37,6 +37,7 @@ export default function DashboardPage() {
   const [totalFound, setTotalFound] = useState(0);
   const logEndRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const addLog = (message: string, type: LogEntry['type'] = 'info') => {
     const newLog: LogEntry = {
@@ -95,6 +96,9 @@ export default function DashboardPage() {
 
   const executeScan = async (currentOffset: number = 0) => {
     setIsScanning(true);
+    abortControllerRef.current = new AbortController();
+    const signal = abortControllerRef.current.signal;
+
     if (currentOffset === 0) {
       setFindings([]);
       setLogs([]);
@@ -112,6 +116,7 @@ export default function DashboardPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ repo_url: repoUrl, offset: currentOffset }),
+        signal
       });
 
       if (!response.ok) {
@@ -144,6 +149,7 @@ export default function DashboardPage() {
             repo: data.repo,
             files: data.files_found
           }),
+          signal
         });
 
         if (!analyzeResponse.ok) {
@@ -177,7 +183,20 @@ export default function DashboardPage() {
                     ...finding
                   }));
                   
-                  setFindings(prev => [...prev, ...newFindings]);
+                  const severityWeight: Record<string, number> = {
+                    'Critical': 5,
+                    'High': 4,
+                    'Medium': 3,
+                    'Low': 2,
+                    'Informational': 1
+                  };
+
+                  setFindings(prev => {
+                    const combined = [...prev, ...newFindings];
+                    return combined.sort((a, b) => 
+                      (severityWeight[b.severity] || 0) - (severityWeight[a.severity] || 0)
+                    );
+                  });
                   
                   newFindings.forEach((f: any) => {
                     addLog(`[${f.severity}] ${result.file} (${result.category}): ${f.description}`, 
@@ -196,10 +215,62 @@ export default function DashboardPage() {
       
       addLog('Full security audit complete.', 'success');
     } catch (err) {
-      addLog(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`, 'error');
+      if ((err as any).name === 'AbortError') {
+        addLog('Security audit terminated by user.', 'warning');
+      } else {
+        addLog(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`, 'error');
+      }
     } finally {
       setIsScanning(false);
+      abortControllerRef.current = null;
     }
+  };
+
+  const handleStopScan = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      addLog('Terminating active audit stream...', 'warning');
+    }
+  };
+
+  const exportResults = (format: 'xml' | 'yaml' | 'markdown') => {
+    let content = '';
+    const timestamp = new Date().toISOString();
+    const promptHeader = `### SECURITY REMEDIATION TASK ###\nRepository: ${repoUrl}\nGenerated: ${timestamp}\nTotal Issues: ${findings.length}\n\nINSTRUCTIONS FOR AI AGENT:\nYou are an expert Security Engineer. Analyze the following ${format.toUpperCase()} audit data from LumeScan and provide a detailed implementation plan and code patches to remediate these vulnerabilities. Prioritize 'Critical' and 'High' severity items.\n\n`;
+
+    if (format === 'xml') {
+      const xmlFindings = findings.map(f => `
+  <vulnerability>
+    <file>${f.file}</file>
+    <severity>${f.severity}</severity>
+    <category>${f.category}</category>
+    <type>${f.type}</type>
+    <description>${f.description}</description>
+    <recommendation>${f.recommendation}</recommendation>
+  </vulnerability>`).join('');
+      content = `${promptHeader}<security_audit>\n  <metadata>\n    <repo>${repoUrl}</repo>\n    <count>${findings.length}</count>\n  </metadata>\n  <findings>${xmlFindings}\n  </findings>\n</security_audit>`;
+    } else if (format === 'yaml') {
+      const yamlFindings = findings.map(f => `  - file: "${f.file}"
+    severity: "${f.severity}"
+    category: "${f.category}"
+    type: "${f.type}"
+    description: "${f.description.replace(/"/g, "'")}"
+    recommendation: "${f.recommendation.replace(/"/g, "'")}"`).join('\n');
+      content = `${promptHeader}security_audit:\n  repository: "${repoUrl}"\n  findings:\n${yamlFindings}`;
+    } else {
+      const mdFindings = findings.map(f => `### [${f.severity}] ${f.file}\n- **Category**: ${f.category}\n- **Type**: ${f.type}\n- **Description**: ${f.description}\n- **Remediation**: ${f.recommendation}\n`).join('\n');
+      content = `${promptHeader}# Security Audit Report: ${repoUrl}\n\n${mdFindings}`;
+    }
+
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `lumescan_audit_${new Date().getTime()}.${format === 'markdown' ? 'md' : format}`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    addLog(`Exported ${format.toUpperCase()} AI Package.`, 'success');
   };
 
   return (
@@ -254,13 +325,22 @@ export default function DashboardPage() {
                     </div>
                   )}
                 </div>
-                <button
-                  type="submit"
-                  disabled={isScanning}
-                  className="w-full py-3 bg-emerald-500 text-black font-bold rounded hover:bg-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                >
-                  {isScanning ? 'SCANNING...' : 'INITIALIZE AUDIT'}
-                </button>
+                {isScanning ? (
+                  <button
+                    type="button"
+                    onClick={handleStopScan}
+                    className="w-full py-3 bg-rose-500 text-white font-bold rounded hover:bg-rose-600 transition-all flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(244,63,94,0.3)]"
+                  >
+                    <Square size={16} fill="white" /> STOP AUDIT
+                  </button>
+                ) : (
+                  <button
+                    type="submit"
+                    className="w-full py-3 bg-emerald-500 text-black font-bold rounded hover:bg-emerald-400 transition-all flex items-center justify-center gap-2"
+                  >
+                    <Play size={16} fill="black" /> INITIALIZE AUDIT
+                  </button>
+                )}
               </form>
               {totalFound > offset + 50 && !isScanning && (
                 <button
@@ -334,6 +414,33 @@ export default function DashboardPage() {
                 <AlertTriangle className="text-amber-500" />
                 SECURITY FINDINGS <span className="text-xs bg-zinc-800 px-2 py-1 rounded text-zinc-400 font-mono">{findings.length} ISSUES</span>
               </h2>
+              
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-zinc-500 font-mono hidden md:block">EXPORT AI PACKAGE:</span>
+                <div className="flex gap-1">
+                  <button 
+                    onClick={() => exportResults('xml')}
+                    className="p-2 bg-zinc-900 border border-zinc-800 rounded hover:border-emerald-500/50 text-zinc-400 hover:text-emerald-500 transition-all flex items-center gap-2 text-[10px] font-bold"
+                    title="Export XML"
+                  >
+                    <FileCode size={14} /> XML
+                  </button>
+                  <button 
+                    onClick={() => exportResults('yaml')}
+                    className="p-2 bg-zinc-900 border border-zinc-800 rounded hover:border-emerald-500/50 text-zinc-400 hover:text-emerald-500 transition-all flex items-center gap-2 text-[10px] font-bold"
+                    title="Export YAML"
+                  >
+                    <FileDown size={14} /> YAML
+                  </button>
+                  <button 
+                    onClick={() => exportResults('markdown')}
+                    className="p-2 bg-zinc-900 border border-zinc-800 rounded hover:border-emerald-500/50 text-zinc-400 hover:text-emerald-500 transition-all flex items-center gap-2 text-[10px] font-bold"
+                    title="Export Markdown"
+                  >
+                    <FileText size={14} /> MD
+                  </button>
+                </div>
+              </div>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
