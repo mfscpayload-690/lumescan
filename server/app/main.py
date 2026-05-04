@@ -108,6 +108,23 @@ async def init_scan(request: ScanRequest):
                 raise HTTPException(status_code=response.status_code, detail="Failed to fetch repository tree")
             
             tree_data = response.json()
+            
+            # Fetch Repo Metadata for context
+            repo_meta_url = f"https://api.github.com/repos/{owner}/{repo}"
+            meta_res = await client.get(repo_meta_url)
+            metadata = {}
+            if meta_res.status_code == 200:
+                m = meta_res.json()
+                metadata = {
+                    "stars": m.get("stargazers_count"),
+                    "forks": m.get("forks_count"),
+                    "language": m.get("language"),
+                    "license": m.get("license", {}).get("name") if m.get("license") else "No License",
+                    "updated_at": m.get("updated_at"),
+                    "open_issues": m.get("open_issues_count"),
+                    "description": m.get("description")
+                }
+
             files = []
             for item in tree_data.get("tree", []):
                 if item["type"] == "blob":
@@ -133,6 +150,7 @@ async def init_scan(request: ScanRequest):
                 "files_found": files,
                 "total_found": total_found,
                 "offset": request.offset,
+                "metadata": metadata,
                 "message": f"Showing files {request.offset + 1}-{request.offset + len(files)} of {total_found}." if total_found > 50 else None
             }
             
