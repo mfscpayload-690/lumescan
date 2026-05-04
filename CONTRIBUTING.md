@@ -17,3 +17,4 @@ Thank you for your interest in contributing to LumeScan!
 ## License
 
 By contributing, you agree that your contributions will be licensed under the MIT License.
+\nHappy coding! 🚀
