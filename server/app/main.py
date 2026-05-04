@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 import re
 import httpx
 import traceback
@@ -11,7 +11,7 @@ app = FastAPI(title="LumeScan API", version="1.0.0", redirect_slashes=False)
 # Models
 class ScanRequest(BaseModel):
     repo_url: str
-    offset: int = 0
+    offset: int = Field(default=0, ge=0)
 
 class AnalyzeRequest(BaseModel):
     owner: str
