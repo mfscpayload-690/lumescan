@@ -1,16 +1,16 @@
-import google.generativeai as genai
+from groq import Groq
 import httpx
 import json
-import re
+import asyncio
 from app.core.config import settings
 
 class AnalyzeService:
     def __init__(self):
-        if settings.GOOGLE_API_KEY:
-            genai.configure(api_key=settings.GOOGLE_API_KEY)
-            self.model = genai.GenerativeModel('gemini-2.5-flash-lite')
+        # Groq Configuration (Primary Engine)
+        if settings.GROQ_API_KEY:
+            self.groq_client = Groq(api_key=settings.GROQ_API_KEY)
         else:
-            self.model = None
+            self.groq_client = None
 
     async def get_file_content(self, owner: str, repo: str, path: str) -> str:
         url = f"https://raw.githubusercontent.com/{owner}/{repo}/main/{path}"
@@ -27,54 +27,71 @@ class AnalyzeService:
                 pass
             return ""
 
-    async def analyze_file(self, owner: str, repo: str, path: str) -> dict:
-        if not self.model:
-            return {"error": "Gemini API key not configured", "file": path}
+    def _get_prompt(self, owner, repo, path, content, category):
+        return f"""
+        You are a Senior Security Auditor performing a DEEP LOGIC audit on a {category} file: '{path}'.
+        Repository Context: {owner}/{repo}
 
-        content = await self.get_file_content(owner, repo, path)
-        if not content:
-            return {"error": f"Could not fetch content for {path}", "file": path}
+        AUDIT FOCUS (OWASP & Framework Specific):
+        {
+            "- LOGIC AUDIT: Search for Broken Access Control, BOLA (Object level auth), SQL/NoSQL Injection, and Unsafe Operations." if category == "Logic" else
+            "- CONFIG AUDIT: Search for Insecure CORS (allow_origins=['*']), exposed debug modes, and weak crypto." if category == "Config" else
+            "- WORKFLOW AUDIT: Search for plain-text secret exposure in CI/CD and unpinned 3rd party actions." if category == "Workflow" else
+            "- SECRETS AUDIT: Search for actual API keys, credentials, or dangerous misconfigurations in .env.example." if category == "Secrets" else
+            "Perform a general security hygiene and dependency audit."
+        }
 
-        prompt = f"""
-        You are a Senior Security Engineer. Analyze the following file content from the GitHub repository '{owner}/{repo}' (file path: '{path}').
-        
-        File Content:
+        FILE CONTENT:
         ---
         {content}
         ---
-        
-        Identify:
-        1. Potential security vulnerabilities (e.g., hardcoded secrets, insecure configurations, vulnerable dependencies).
-        2. Compliance risks.
-        3. Best practice violations.
-        
-        Provide the result in a structured JSON format ONLY. Do not add any conversational text.
-        
-        Format Example:
+
+        Output Requirements:
+        1. Return ONLY a valid JSON object.
+        2. Identify specific lines or logic blocks that are problematic.
+        3. Assign severity: Critical, High, Medium, Low, Informational.
+
+        JSON FORMAT:
         {{
             "file": "{path}",
             "findings": [
                 {{
-                    "type": "Vulnerability",
-                    "severity": "High",
-                    "description": "Hardcoded API key found.",
-                    "recommendation": "Use environment variables."
+                    "type": "Vulnerability|Compliance|BestPractice",
+                    "severity": "Critical|High|Medium|Low|Informational",
+                    "description": "Short, technical description of the flaw.",
+                    "recommendation": "Step-by-step remediation advice."
                 }}
             ]
         }}
         """
 
+    async def analyze_file(self, owner: str, repo: str, path: str, category: str = "General") -> dict:
+        content = await self.get_file_content(owner, repo, path)
+        if not content:
+            return {"error": f"Could not fetch content for {path}", "file": path}
+
+        prompt = self._get_prompt(owner, repo, path, content, category)
+
+        if not self.groq_client:
+            return {"error": "Groq API key not configured", "file": path}
+
         try:
-            response = self.model.generate_content(prompt)
-            text = response.text
-            
-            # Use regex to find the JSON block if it's wrapped in markdown
-            json_match = re.search(r'\{.*\}', text, re.DOTALL)
-            if json_match:
-                return json.loads(json_match.group())
-            
-            return {"error": "Failed to parse AI response", "raw": text, "file": path}
+            # Groq high-speed analysis
+            response = await asyncio.to_thread(
+                self.groq_client.chat.completions.create,
+                messages=[
+                    {"role": "system", "content": "You are a specialized security auditor JSON output machine."},
+                    {"role": "user", "content": prompt}
+                ],
+                model="llama-3.3-70b-versatile",
+                response_format={"type": "json_object"}
+            )
+            result = json.loads(response.choices[0].message.content)
+            # Ensure AI doesn't override critical metadata (Hallucination Shield)
+            result["file"] = path
+            result["category"] = category
+            return result
         except Exception as e:
-            return {"error": f"AI Analysis failed: {str(e)}", "file": path}
+            return {"error": f"Groq Analysis failed: {str(e)}", "file": path}
 
 analyze_service = AnalyzeService()
