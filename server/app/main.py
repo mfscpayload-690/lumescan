@@ -13,10 +13,14 @@ class ScanRequest(BaseModel):
     repo_url: str
     offset: int = Field(default=0, ge=0)
 
+class AnalyzeFileItem(BaseModel):
+    path: str
+    category: str
+
 class AnalyzeRequest(BaseModel):
     owner: str
     repo: str
-    files: list[dict]
+    files: list[AnalyzeFileItem]
 
 GITHUB_URL_PATTERN = re.compile(r"https?://github\.com/([^/]+)/([^/]+)/?$")
 
@@ -99,9 +103,12 @@ async def analyze_repo(request: AnalyzeRequest):
             try:
                 # 1.5s safety delay between files
                 await asyncio.sleep(1.5)
-                result = await analyze_service.analyze_file(request.owner, request.repo, file_info["path"], file_info["category"])
+                result = await analyze_service.analyze_file(
+                    request.owner, request.repo, file_info.path, file_info.category
+                )
                 yield f"{json.dumps(result)}\n"
             except Exception as e:
-                yield f"{json.dumps({'file': file_info['path'], 'error': str(e)})}\n"
+                safe_path = getattr(file_info, "path", "<unknown>")
+                yield f"{json.dumps({'file': safe_path, 'error': str(e)})}\n"
     
     return StreamingResponse(generate_results(), media_type="application/x-ndjson")
