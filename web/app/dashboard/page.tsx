@@ -28,12 +28,15 @@ interface Finding {
  */
 export default function DashboardPage() {
   const [repoUrl, setRepoUrl] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [showDropdown, setShowDropdown] = useState(false);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [findings, setFindings] = useState<Finding[]>([]);
   const [isScanning, setIsScanning] = useState(false);
   const [offset, setOffset] = useState(0);
   const [totalFound, setTotalFound] = useState(0);
   const logEndRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const addLog = (message: string, type: LogEntry['type'] = 'info') => {
     const newLog: LogEntry = {
@@ -48,6 +51,42 @@ export default function DashboardPage() {
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [logs]);
+
+  // Progressive Search Logic
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(async () => {
+      if (repoUrl && repoUrl.length >= 2 && !repoUrl.startsWith('http')) {
+        try {
+          const apiBase = process.env.NEXT_PUBLIC_API_BASE || 'http://127.0.0.1:8000';
+          const res = await fetch(`${apiBase}/api/v1/search/repos?q=${encodeURIComponent(repoUrl)}`);
+          if (!res.ok) throw new Error('Search failed');
+          const data = await res.json();
+          setSearchResults(data.items || []);
+          setShowDropdown(data.items?.length > 0);
+        } catch (error) {
+          console.error("Search failed:", error);
+          setSearchResults([]);
+          setShowDropdown(false);
+        }
+      } else {
+        setSearchResults([]);
+        setShowDropdown(false);
+      }
+    }, 500);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [repoUrl]);
+
+  // Close dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -182,15 +221,38 @@ export default function DashboardPage() {
             <div className="p-6 bg-zinc-900/50 border border-zinc-800 rounded-lg">
               <h2 className="text-sm font-semibold text-emerald-500 uppercase tracking-wider mb-4">Repository Config</h2>
               <form onSubmit={handleFormSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-xs text-gray-500 mb-2">GITHUB REPO URL</label>
+                <div className="relative" ref={dropdownRef}>
+                  <label className="block text-xs text-gray-500 mb-2">GITHUB REPO (URL OR OWNER/REPO)</label>
                   <input
                     type="text"
                     value={repoUrl}
                     onChange={(e) => setRepoUrl(e.target.value)}
-                    placeholder="https://github.com/owner/repo"
+                    onFocus={() => repoUrl.length >= 2 && !repoUrl.startsWith('http') && setShowDropdown(true)}
+                    placeholder="e.g. owner/repo"
                     className="w-full bg-black border border-zinc-700 px-4 py-3 rounded text-sm focus:outline-none focus:border-emerald-500 transition-all cyber-glow"
                   />
+                  
+                  {/* Results Dropdown */}
+                  {showDropdown && searchResults.length > 0 && (
+                    <div className="absolute z-50 w-full mt-2 bg-zinc-900 border border-zinc-800 rounded-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+                      {searchResults.map((result, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => {
+                            setRepoUrl(result.full_name);
+                            setShowDropdown(false);
+                          }}
+                          className="w-full text-left px-4 py-3 hover:bg-zinc-800 border-b border-zinc-800 last:border-0 transition-colors"
+                        >
+                          <div className="text-sm font-bold text-emerald-400">{result.full_name}</div>
+                          {result.description && (
+                            <div className="text-[10px] text-gray-500 truncate">{result.description}</div>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <button
                   type="submit"

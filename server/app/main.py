@@ -43,34 +43,57 @@ async def root():
     """
     return {"message": "LumeScan API is running"}
 
+@app.get("/api/v1/search/repos")
+async def search_repos(q: str):
+    """
+    Search for GitHub repositories by name/query.
+    Returns the top 5 results for better UX.
+    """
+    if not q or len(q) < 2:
+        return {"items": []}
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            # Search repositories, sorted by stars for better quality results
+            url = f"https://api.github.com/search/repositories?q={q}&per_page=5&sort=stars"
+            response = await client.get(url)
+            if response.status_code != 200:
+                return {"items": []}
+            
+            data = response.json()
+            return {
+                "items": [
+                    {
+                        "full_name": repo["full_name"],
+                        "html_url": repo["html_url"],
+                        "description": repo["description"]
+                    } for repo in data.get("items", [])
+                ]
+            }
+    except Exception:
+        return {"items": []}
+
 @app.post("/api/v1/scan/init")
 async def init_scan(request: ScanRequest):
     """
     Fetches a GitHub repository tree, classifies blob files by category, and returns a paginated subset of matching files.
     
     Parameters:
-        request (ScanRequest): Contains `repo_url` (GitHub repository URL) and `offset` (pagination start index).
-    
-    Returns:
-        dict: {
-            "owner": owner (str),
-            "repo": repo (str),
-            "files_found": list[dict]: paginated list of {"path": str, "category": str},
-            "total_found": int,
-            "offset": int,
-            "message": str | None
-        }
-    
-    Raises:
-        HTTPException: status 400 if `repo_url` is not a valid GitHub repository URL.
-        HTTPException: status equals GitHub response status if fetching the repository tree fails.
-        HTTPException: status 500 for other internal errors.
+        request (ScanRequest): Contains `repo_url` (GitHub repository URL or owner/repo slug) and `offset` (pagination start index).
     """
-    match = GITHUB_URL_PATTERN.match(request.repo_url.rstrip("/"))
-    if not match:
-        raise HTTPException(status_code=400, detail="Invalid GitHub repository URL format")
+    url = request.repo_url.strip().rstrip("/")
+    match = GITHUB_URL_PATTERN.match(url)
     
-    owner, repo = match.groups()
+    if match:
+        owner, repo = match.groups()
+    elif "/" in url and not url.startswith("http"):
+        parts = url.split("/")
+        if len(parts) == 2:
+            owner, repo = parts
+        else:
+            raise HTTPException(status_code=400, detail="Invalid format. Use 'owner/repo' or full URL.")
+    else:
+        raise HTTPException(status_code=400, detail="Invalid GitHub repository format.")
     
     try:
         async with httpx.AsyncClient(follow_redirects=True) as client:
