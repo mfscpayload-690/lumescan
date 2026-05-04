@@ -1,27 +1,41 @@
-# LumeScan
+# LUME SCAN
 
-[![GitHub Repository](https://img.shields.io/badge/GitHub-Repository-blue?logo=github)](https://github.com/mfscpayload-690/lumescan)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+**LumeScan** is a high-speed, automated GitHub security auditor designed to detect logic flaws, exposed secrets, and misconfigurations in real-time. Powered by the **Groq Llama 3.3** engine, it provides deep-context security analysis with lightning-fast results.
 
-Automated GitHub Security Auditor and Vulnerability Scanner.
+## Key Features
 
-## Features
-
-- **Automated Analysis**: Scans repositories for common security vulnerabilities.
-- **Real-time Insights**: View security findings in a professional dashboard.
-- **AI-Powered**: Leverages Gemini AI for deep code analysis.
-- **Actionable Reports**: Provides clear remediation steps.
+- **High-Speed AI Auditing**: Powered by **Groq / Llama 3.3 (70B)** for near-instant security reasoning.
+- **Real-Time Streaming**: Findings are streamed to a professional dashboard as they are discovered.
+- **Paginated Analysis**: Efficiently handles large repositories by auditing in manageable 50-file batches.
+- **Deep Logic Scans**: Specifically targets BOLA, SQL/NoSQL Injection, Command Injection, and SSRF vulnerabilities.
+- **Actionable Remediation**: Every finding includes clear, technical steps to fix the flaw.
 
 ## Project Structure
 
-- `web/`: Next.js frontend application.
-- `server/`: FastAPI backend service.
-- `local/`: Local development tools and scripts.
+- `web/`: Modern Next.js + TailwindCSS security dashboard.
+- `server/`: FastAPI backend with direct GitHub API integration and AI streaming.
 
-## Getting Started
+## Setup & Installation
 
-Refer to [CONTRIBUTING.md](./CONTRIBUTING.md) for setup instructions.
+### Backend (Server)
+1. Navigate to `/server`.
+2. Install dependencies: `pip install -r requirements.txt`.
+3. Set your environment variables:
+   ```bash
+   GROQ_API_KEY=your_key_here
+   ```
+4. Start the server: `uvicorn app.main:app --reload --port 8000`.
 
-## License
+### Frontend (Web)
+1. Navigate to `/web`.
+2. Install dependencies: `npm install`.
+3. Start the dashboard: `npm run dev`.
 
-MIT
+## Audit Scope
+- **Logic**: Python/JS Controllers, Auth flows, and Data Handling.
+- **Config**: Dependency pinning, CORS, and infrastructure settings.
+- **Secrets**: API keys, credentials, and `.env` exposures.
+- **Workflows**: GitHub Actions security and unpinned versions.
+
+---
+*Built for security researchers and developers who demand speed and depth.*

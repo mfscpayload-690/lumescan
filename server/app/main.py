@@ -1,8 +1,24 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from app.api.v1.router import api_router
+from pydantic import BaseModel
+import re
+import httpx
+import traceback
+from app.services.analyze import analyze_service
 
 app = FastAPI(title="LumeScan API", version="1.0.0", redirect_slashes=False)
+
+# Models
+class ScanRequest(BaseModel):
+    repo_url: str
+    offset: int = 0
+
+class AnalyzeRequest(BaseModel):
+    owner: str
+    repo: str
+    files: list[dict]
+
+GITHUB_URL_PATTERN = re.compile(r"https?://github\.com/([^/]+)/([^/]+)/?$")
 
 # CORS Configuration
 app.add_middleware(
@@ -17,4 +33,73 @@ app.add_middleware(
 async def root():
     return {"message": "LumeScan API is running"}
 
-app.include_router(api_router, prefix="/api/v1")
+@app.post("/api/v1/scan/init")
+async def init_scan(request: ScanRequest):
+    match = GITHUB_URL_PATTERN.match(request.repo_url.rstrip("/"))
+    if not match:
+        raise HTTPException(status_code=400, detail="Invalid GitHub repository URL format")
+    
+    owner, repo = match.groups()
+    
+    try:
+        async with httpx.AsyncClient(follow_redirects=True) as client:
+            tree_url = f"https://api.github.com/repos/{owner}/{repo}/git/trees/main?recursive=1"
+            response = await client.get(tree_url)
+            
+            if response.status_code != 200:
+                tree_url = f"https://api.github.com/repos/{owner}/{repo}/git/trees/master?recursive=1"
+                response = await client.get(tree_url)
+            
+            if response.status_code != 200:
+                raise HTTPException(status_code=response.status_code, detail="Failed to fetch repository tree")
+            
+            tree_data = response.json()
+            files = []
+            for item in tree_data.get("tree", []):
+                if item["type"] == "blob":
+                    path = item["path"]
+                    category = None
+                    if any(path.endswith(ext) for ext in [".py", ".js", ".ts", ".jsx", ".tsx"]):
+                        category = "Logic"
+                    elif any(path.endswith(ext) for ext in [".yaml", ".yml", ".json", ".conf", ".ini"]):
+                        category = "Config"
+                    elif "workflow" in path.lower():
+                        category = "Workflow"
+                    
+                    if category:
+                        files.append({"path": path, "category": category})
+            
+            # Cap at 50 files for stability with pagination
+            total_found = len(files)
+            files = files[request.offset : request.offset + 50]
+            
+            return {
+                "owner": owner, 
+                "repo": repo, 
+                "files_found": files,
+                "total_found": total_found,
+                "offset": request.offset,
+                "message": f"Showing files {request.offset + 1}-{request.offset + len(files)} of {total_found}." if total_found > 50 else None
+            }
+            
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/v1/scan/analyze")
+async def analyze_repo(request: AnalyzeRequest):
+    from fastapi.responses import StreamingResponse
+    import asyncio
+    import json
+    
+    async def generate_results():
+        for file_info in request.files:
+            try:
+                # 1.5s safety delay between files
+                await asyncio.sleep(1.5)
+                result = await analyze_service.analyze_file(request.owner, request.repo, file_info["path"], file_info["category"])
+                yield f"{json.dumps(result)}\n"
+            except Exception as e:
+                yield f"{json.dumps({'file': file_info['path'], 'error': str(e)})}\n"
+    
+    return StreamingResponse(generate_results(), media_type="text/event-stream")

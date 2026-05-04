@@ -12,6 +12,7 @@ interface LogEntry {
 
 interface Finding {
   file: string;
+  category?: string;
   type: string;
   severity: 'Critical' | 'High' | 'Medium' | 'Low' | 'Informational';
   description: string;
@@ -23,6 +24,8 @@ export default function DashboardPage() {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [findings, setFindings] = useState<Finding[]>([]);
   const [isScanning, setIsScanning] = useState(false);
+  const [offset, setOffset] = useState(0);
+  const [totalFound, setTotalFound] = useState(0);
   const logEndRef = useRef<HTMLDivElement>(null);
 
   const addLog = (message: string, type: LogEntry['type'] = 'info') => {
@@ -39,14 +42,20 @@ export default function DashboardPage() {
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [logs]);
 
-  const handleScan = async (e: React.FormEvent) => {
+  const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!repoUrl) return;
+    executeScan(0);
+  };
 
+  const executeScan = async (currentOffset: number = 0) => {
     setIsScanning(true);
-    setLogs([]);
-    setFindings([]);
-    addLog(`Initiating scan for: ${repoUrl}`, 'info');
+    if (currentOffset === 0) {
+      setFindings([]);
+      setLogs([]);
+      setOffset(0);
+    }
+    
+    addLog(`Initiating scan for: ${repoUrl} (Batch: ${currentOffset / 50 + 1})`, 'info');
     
     try {
       addLog('Validating repository structure...', 'info');
@@ -54,7 +63,7 @@ export default function DashboardPage() {
       const response = await fetch('http://127.0.0.1:8000/api/v1/scan/init', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ repo_url: repoUrl }),
+        body: JSON.stringify({ repo_url: repoUrl, offset: currentOffset }),
       });
 
       if (!response.ok) {
@@ -62,14 +71,21 @@ export default function DashboardPage() {
       }
 
       const data = await response.json();
+      setTotalFound(data.total_found);
+      setOffset(data.offset);
       
-      addLog('Scanning tree...', 'info');
-      data.files_found.forEach((file: string) => {
-        addLog(`Found target file: ${file}`, 'success');
+      addLog(`Found ${data.total_found} target files.`, 'info');
+      if (data.message) {
+        addLog(data.message, 'warning');
+      }
+      
+      addLog('Prioritizing and categorizing tree...', 'info');
+      data.files_found.forEach((f: any) => {
+        addLog(`Target: ${f.path} [${f.category}]`, 'success');
       });
       
       if (data.files_found.length > 0) {
-        addLog(`Initiating AI analysis for ${data.files_found.length} files...`, 'info');
+        addLog(`Initiating prioritized AI analysis for ${data.files_found.length} files...`, 'info');
         
         const analyzeResponse = await fetch('http://127.0.0.1:8000/api/v1/scan/analyze', {
           method: 'POST',
@@ -108,17 +124,18 @@ export default function DashboardPage() {
                 } else if (result.findings && result.findings.length > 0) {
                   const newFindings = result.findings.map((finding: any) => ({
                     file: result.file,
+                    category: result.category,
                     ...finding
                   }));
                   
                   setFindings(prev => [...prev, ...newFindings]);
                   
                   newFindings.forEach((f: any) => {
-                    addLog(`[${f.severity}] ${result.file}: ${f.description}`, 
+                    addLog(`[${f.severity}] ${result.file} (${result.category}): ${f.description}`, 
                       f.severity === 'Critical' || f.severity === 'High' ? 'error' : 'warning');
                   });
                 } else {
-                  addLog(`Analysis for ${result.file}: No critical vulnerabilities found.`, 'success');
+                  addLog(`Analysis for ${result.file} (${result.category}): No critical issues.`, 'success');
                 }
               } catch (e) {
                 console.error("Error parsing stream chunk:", e);
@@ -154,7 +171,7 @@ export default function DashboardPage() {
           <div className="lg:col-span-1 space-y-6">
             <div className="p-6 bg-zinc-900/50 border border-zinc-800 rounded-lg">
               <h2 className="text-sm font-semibold text-emerald-500 uppercase tracking-wider mb-4">Repository Config</h2>
-              <form onSubmit={handleScan} className="space-y-4">
+              <form onSubmit={handleFormSubmit} className="space-y-4">
                 <div>
                   <label className="block text-xs text-gray-500 mb-2">GITHUB REPO URL</label>
                   <input
@@ -173,15 +190,23 @@ export default function DashboardPage() {
                   {isScanning ? 'SCANNING...' : 'INITIALIZE AUDIT'}
                 </button>
               </form>
+              {totalFound > offset + 50 && !isScanning && (
+                <button
+                  onClick={() => executeScan(offset + 50)}
+                  className="w-full mt-4 py-3 bg-transparent border border-emerald-500 text-emerald-500 font-bold rounded hover:bg-emerald-500/10 transition-all"
+                >
+                  SCAN NEXT BATCH ({offset + 51}-{Math.min(offset + 100, totalFound)})
+                </button>
+              )}
             </div>
 
             <div className="p-6 bg-zinc-900/50 border border-zinc-800 rounded-lg">
               <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Audit Scope</h2>
               <ul className="text-xs space-y-2 text-gray-500">
-                <li>• package.json (Dependencies)</li>
-                <li>• Dockerfile (Container Sec)</li>
-                <li>• .env.example (Leak check)</li>
-                <li>• .yml/.yaml (CI/CD workflows)</li>
+                <li>• Logic (Python/JS Controllers)</li>
+                <li>• Config (Dependencies/CORS)</li>
+                <li>• Secrets (.env/Keys)</li>
+                <li>• Workflows (CI/CD)</li>
               </ul>
             </div>
           </div>
@@ -241,11 +266,22 @@ export default function DashboardPage() {
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {findings.map((finding, idx) => (
-                <div key={idx} className="group p-5 bg-[#0a0a0a] border border-[#333] rounded-xl hover:border-emerald-500/50 transition-all duration-300">
+                <div key={idx} className="group p-5 bg-[#0a0a0a] border border-[#333] rounded-xl hover:border-emerald-500/50 transition-all duration-300 relative overflow-hidden">
+                  {/* Category Accent */}
+                  <div className={`absolute top-0 right-0 w-24 h-24 -mr-12 -mt-12 opacity-5 rotate-45 
+                    ${finding.category === 'Logic' ? 'bg-blue-500' : 'bg-emerald-500'}`} 
+                  />
+
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex flex-col gap-1">
-                      <span className="text-[10px] text-[#666] font-mono tracking-widest uppercase">FILE PATH</span>
-                      <code className="text-xs text-emerald-400">{finding.file}</code>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-[#666] font-mono tracking-widest uppercase">FILE PATH</span>
+                        <span className={`text-[8px] px-1.5 py-0.5 rounded border border-zinc-700 font-bold uppercase tracking-tighter
+                          ${finding.category === 'Logic' ? 'text-blue-400 border-blue-500/30' : 'text-emerald-400 border-emerald-500/30'}`}>
+                          {finding.category || 'GENERAL'}
+                        </span>
+                      </div>
+                      <code className="text-xs text-emerald-400 truncate max-w-[250px]">{finding.file}</code>
                     </div>
                     <span className={`
                       px-3 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase
@@ -265,9 +301,19 @@ export default function DashboardPage() {
                       <p className="text-sm text-zinc-300 leading-relaxed">{finding.description}</p>
                     </div>
                     
-                    <div className="p-3 bg-emerald-500/5 border border-emerald-500/20 rounded-lg">
+                    <div className="p-3 bg-emerald-500/5 border border-emerald-500/20 rounded-lg group/rem relative">
                       <h4 className="text-[10px] font-bold text-emerald-500 mb-1 uppercase tracking-tighter">REMEDIATION</h4>
                       <p className="text-xs text-emerald-200/70">{finding.recommendation}</p>
+                      <button 
+                        onClick={() => {
+                          navigator.clipboard.writeText(finding.recommendation);
+                          addLog(`Copied remediation for ${finding.file}`, 'success');
+                        }}
+                        className="absolute top-2 right-2 opacity-0 group-hover/rem:opacity-100 transition-opacity text-emerald-500 hover:scale-110"
+                        title="Copy Recommendation"
+                      >
+                        <Copy size={12} />
+                      </button>
                     </div>
                   </div>
                 </div>
