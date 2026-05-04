@@ -1,4 +1,5 @@
 import React from 'react';
+// Landing hero component with premium animations and responsive layout
 import Link from 'next/link';
 import { ShieldCheck, ChevronRight, Zap, Lock, Coffee, Book } from 'lucide-react';
 
