@@ -5,6 +5,7 @@ import re
 import httpx
 import traceback
 from app.services.analyze import analyze_service
+from app.core.config import settings
 
 app = FastAPI(title="LumeScan API", version="1.0.0", redirect_slashes=False)
 
