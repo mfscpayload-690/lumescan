@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  output: 'export',
+  /* Standard config for Web Service deployment */
   images: {
     unoptimized: true,
   },
