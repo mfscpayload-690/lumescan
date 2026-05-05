@@ -158,7 +158,7 @@ async def init_scan(request: ScanRequest):
         raise
     except Exception as e:
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An error occurred while initializing the scan.")
 
 @app.post("/api/v1/scan/analyze")
 async def analyze_repo(request: AnalyzeRequest):
@@ -195,7 +195,7 @@ async def analyze_repo(request: AnalyzeRequest):
                 )
                 yield f"{json.dumps(result)}\n"
             except Exception as e:
-                safe_path = getattr(file_info, "path", "<unknown>")
-                yield f"{json.dumps({'file': safe_path, 'error': str(e)})}\n"
+                traceback.print_exc()
+                yield f"{json.dumps({'file': file_info.path, 'error': 'Analysis failed for this file'})}\n"
     
     return StreamingResponse(generate_results(), media_type="application/x-ndjson")
