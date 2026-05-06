@@ -26,14 +26,14 @@ export const Hero: React.FC = () => {
     <section className="relative min-h-screen flex items-center pt-32 pb-20 lg:pt-20 lg:pb-20 overflow-hidden">
       {/* Background Decor */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full -z-10 pointer-events-none">
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-emerald-500/10 blur-[120px] rounded-full" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-500/10 blur-[120px] rounded-full" />
+        <div className="absolute top-[-5%] left-[-5%] w-[45%] h-[45%] bg-emerald-500/5 blur-[120px] rounded-full animate-float" />
+        <div className="absolute bottom-[-5%] right-[-5%] w-[45%] h-[45%] bg-blue-500/5 blur-[120px] rounded-full animate-float [animation-delay:2s]" />
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid lg:grid-cols-2 gap-24 items-center">
           <div className="text-center lg:text-left space-y-10 reveal reveal-up">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-xs font-bold uppercase tracking-widest reveal reveal-up reveal-delay-1">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/5 border border-emerald-500/10 text-emerald-500 text-xs font-bold uppercase tracking-widest reveal reveal-up reveal-delay-1">
               <Zap size={14} className="animate-pulse" />
               New: AI-Powered Remediation
             </div>
@@ -41,12 +41,12 @@ export const Hero: React.FC = () => {
             <div className="space-y-6">
               <h1 className="text-5xl md:text-7xl lg:text-[5.5rem] font-black tracking-tight leading-[1] text-white reveal reveal-up reveal-delay-2">
                 Secure your code<br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-emerald-500 to-blue-500 brightness-125">
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-emerald-500 to-blue-400 brightness-110">
                   with confidence.
                 </span>
               </h1>
   
-              <p className="text-lg md:text-xl text-zinc-400 max-w-xl mx-auto lg:mx-0 leading-relaxed reveal reveal-up reveal-delay-3">
+              <p className="text-lg md:text-xl text-slate-400 max-w-xl mx-auto lg:mx-0 leading-relaxed reveal reveal-up reveal-delay-3">
                 LumeScan provides friendly, professional-grade security audits for your GitHub repositories. 
                 Detect vulnerabilities before they reach production.
               </p>
@@ -55,7 +55,7 @@ export const Hero: React.FC = () => {
             <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-6 reveal reveal-up reveal-delay-4">
               <Link 
                 href="/" 
-                className="group w-full sm:w-auto h-16 px-10 bg-emerald-500 text-black font-bold rounded-xl hover:bg-emerald-400 transition-all flex items-center justify-center gap-2 cyber-glow"
+                className="group w-full sm:w-auto h-16 px-10 bg-emerald-500 text-slate-950 font-bold rounded-xl hover:bg-emerald-400 transition-all flex items-center justify-center gap-2 cyber-glow"
               >
                 Launch App
                 <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
@@ -65,14 +65,14 @@ export const Hero: React.FC = () => {
                   href="https://github.com/mfscpayload-690/lumescan"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-14 h-14 glass border-zinc-800 text-white font-bold rounded-xl hover:bg-white/5 transition-all flex items-center justify-center"
+                  className="w-14 h-14 glass border-slate-800 text-white font-bold rounded-xl hover:bg-white/5 transition-all flex items-center justify-center"
                   title="Star on GitHub"
                 >
                   <GithubIcon size={24} />
                 </a>
                 <Link 
                   href="/docs"
-                  className="h-14 px-8 bg-zinc-900 border border-zinc-800 text-zinc-400 font-bold rounded-xl hover:text-white hover:border-zinc-600 transition-all flex items-center justify-center gap-2"
+                  className="h-14 px-8 bg-slate-900 border border-slate-800 text-slate-400 font-bold rounded-xl hover:text-white hover:border-slate-600 transition-all flex items-center justify-center gap-2"
                 >
                   <Book size={18} />
                   Docs
@@ -83,37 +83,37 @@ export const Hero: React.FC = () => {
             </div>
 
           <div className="relative lg:block reveal reveal-up reveal-delay-5">
-            <div className="p-1 rounded-[2rem] bg-gradient-to-br from-emerald-500/20 via-transparent to-blue-500/20">
-              <div className="p-8 rounded-[1.8rem] bg-zinc-950/80 backdrop-blur-2xl relative overflow-hidden border border-white/5">
+            <div className="p-1 rounded-[2rem] bg-gradient-to-br from-emerald-500/10 via-transparent to-blue-500/10">
+              <div className="p-8 rounded-[1.8rem] bg-slate-950/80 backdrop-blur-2xl relative overflow-hidden border border-slate-800/50 shadow-2xl">
                 <div className="absolute inset-0 bg-emerald-500/5 -z-10" />
                 <div className="space-y-6">
-                  <div className="flex items-center gap-5 p-5 rounded-2xl bg-white/[0.03] border border-white/5 hover:border-emerald-500/30 transition-all group">
+                  <div className="flex items-center gap-5 p-5 rounded-2xl bg-slate-900/40 border border-slate-800 hover:border-emerald-500/30 transition-all group">
                     <div className="p-4 bg-emerald-500/10 rounded-2xl group-hover:scale-110 transition-transform">
                       <ShieldCheck size={32} className="text-emerald-500" />
                     </div>
                     <div>
                       <h3 className="text-white text-lg font-bold">100% Open Source</h3>
-                      <p className="text-sm text-zinc-500">Transparent, community-driven security.</p>
+                      <p className="text-sm text-slate-500">Transparent, community-driven security.</p>
                     </div>
                   </div>
   
-                  <div className="flex items-center gap-5 p-5 rounded-2xl bg-white/[0.03] border border-white/5 hover:border-blue-500/30 transition-all group">
+                  <div className="flex items-center gap-5 p-5 rounded-2xl bg-slate-900/40 border border-slate-800 hover:border-blue-500/30 transition-all group">
                     <div className="p-4 bg-blue-500/10 rounded-2xl group-hover:scale-110 transition-transform">
                       <Lock size={32} className="text-blue-500" />
                     </div>
                     <div>
                       <h3 className="text-white text-lg font-bold">Privacy First</h3>
-                      <p className="text-sm text-zinc-500">No data retention. Your code is safe.</p>
+                      <p className="text-sm text-slate-500">No data retention. Your code is safe.</p>
                     </div>
                   </div>
   
-                  <div className="flex items-center gap-5 p-5 rounded-2xl bg-white/[0.03] border border-white/5 hover:border-purple-500/30 transition-all group">
+                  <div className="flex items-center gap-5 p-5 rounded-2xl bg-slate-900/40 border border-slate-800 hover:border-purple-500/30 transition-all group">
                     <div className="p-4 bg-purple-500/10 rounded-2xl group-hover:scale-110 transition-transform">
                       <Zap size={32} className="text-purple-500" />
                     </div>
                     <div>
                       <h3 className="text-white text-lg font-bold">Blazing Fast</h3>
-                      <p className="text-sm text-zinc-500">Deep scans completed in minutes.</p>
+                      <p className="text-sm text-slate-500">Deep scans completed in minutes.</p>
                     </div>
                   </div>
                 </div>
@@ -121,8 +121,8 @@ export const Hero: React.FC = () => {
             </div>
             
             {/* Floating effect elements */}
-            <div className="absolute -top-6 -right-6 w-32 h-32 bg-emerald-500/10 blur-[60px] rounded-full animate-pulse" />
-            <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-blue-500/10 blur-[80px] rounded-full animate-pulse [animation-delay:1s]" />
+            <div className="absolute -top-6 -right-6 w-32 h-32 bg-emerald-500/5 blur-[60px] rounded-full animate-pulse" />
+            <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-blue-500/5 blur-[80px] rounded-full animate-pulse [animation-delay:1s]" />
           </div>
         </div>
       </div>
