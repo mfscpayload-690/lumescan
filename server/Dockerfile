@@ -17,5 +17,5 @@ COPY . .
 # Expose the default port
 EXPOSE 8080
 
-# Start uvicorn
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
+# Start uvicorn using the PORT environment variable provided by the platform
+CMD uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8080}
