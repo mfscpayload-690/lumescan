@@ -1,3 +1,12 @@
+---
+title: LumeScan API
+emoji: 🛡️
+colorFrom: green
+colorTo: emerald
+sdk: docker
+app_port: 7860
+---
+
 # LUME SCAN
 
 **LumeScan** is a high-speed, automated GitHub security auditor designed to detect logic flaws, exposed secrets, and misconfigurations in real-time. Powered by the **Groq Llama 3.3** engine, it provides deep-context security analysis with lightning-fast results.
@@ -18,24 +27,7 @@
 ## Setup & Installation
 
 ### Backend (Server)
-1. Navigate to `/server`.
-2. Install dependencies: `pip install -r requirements.txt`.
-3. Set your environment variables:
-   ```bash
-   GROQ_API_KEY=your_key_here
-   ```
-4. Start the server: `uvicorn app.main:app --reload --port 8000`.
-
-### Frontend (Web)
-1. Navigate to `/web`.
-2. Install dependencies: `npm install`.
-3. Start the dashboard: `npm run dev`.
-
-## Audit Scope
-- **Logic**: Python/JS Controllers, Auth flows, and Data Handling.
-- **Config**: Dependency pinning, CORS, and infrastructure settings.
-- **Secrets**: API keys, credentials, and `.env` exposures.
-- **Workflows**: GitHub Actions security and unpinned versions.
-
----
-*Built for security researchers and developers who demand speed and depth.*
+1. Navigate to `server/`
+2. Install dependencies: `pip install -r requirements.txt`
+3. Configure `.env` with `GROQ_API_KEY` and `GITHUB_TOKEN`.
+4. Run: `uvicorn app.main:app --reload`
