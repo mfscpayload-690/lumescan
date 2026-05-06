@@ -20,8 +20,8 @@ jobs:
           # Create a fresh, temporary directory for the push
           mkdir deploy_dir
           
-          # Copy only the files needed for the backend
-          cp -r server/* deploy_dir/
+          # Copy only the files needed for the backend (preserve folder structure)
+          cp -r server deploy_dir/
           cp Dockerfile deploy_dir/
           cp README.md deploy_dir/
           
