@@ -131,12 +131,19 @@ async def init_scan(request: ScanRequest):
                 if item["type"] == "blob":
                     path = item["path"]
                     category = None
-                    if any(path.endswith(ext) for ext in [".py", ".js", ".ts", ".jsx", ".tsx"]):
+                    if any(path.lower().endswith(ext) for ext in [
+                        ".py", ".js", ".ts", ".jsx", ".tsx",  # Web & Scripts
+                        ".rs", ".go",                         # Systems
+                        ".cpp", ".h", ".hpp", ".c", ".cc",    # C/C++
+                        ".rb", ".php"                         # Legacy/Web
+                    ]):
                         category = "Logic"
-                    elif any(path.endswith(ext) for ext in [".yaml", ".yml", ".json", ".conf", ".ini"]):
+                    elif any(path.lower().endswith(ext) for ext in [".yaml", ".yml", ".json", ".conf", ".ini", ".toml", ".xml"]):
                         category = "Config"
-                    elif "workflow" in path.lower():
+                    elif "workflow" in path.lower() or path.lower().endswith((".github/workflows", "gitlab-ci.yml")):
                         category = "Workflow"
+                    elif any(name in path.lower() for name in ["dockerfile", "containerfile"]):
+                        category = "Config"
                     
                     if category:
                         files.append({"path": path, "category": category})

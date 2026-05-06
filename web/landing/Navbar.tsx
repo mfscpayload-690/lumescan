@@ -22,7 +22,7 @@ const GithubIcon = ({ size = 24, ...props }: { size?: number } & React.SVGProps<
 
 export const Navbar: React.FC = () => {
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-zinc-950/70 backdrop-blur-xl backdrop-saturate-150 border-b border-white/5">
+    <nav className="fixed top-0 left-0 right-0 z-50 bg-slate-950/70 backdrop-blur-xl backdrop-saturate-150 border-b border-white/5">
       <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center gap-2">
@@ -38,44 +38,44 @@ export const Navbar: React.FC = () => {
             </Link>
           </div>
 
-          <div className="hidden md:block">
-            <div className="flex items-center gap-8">
-              <Link href="/welcome#features" className="text-sm font-medium text-zinc-400 hover:text-white transition-colors">Features</Link>
-              <a href="https://github.com/mfscpayload-690/lumescan/discussions" target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-zinc-400 hover:text-white transition-colors">Community</a>
+          <div className="flex items-center gap-4 sm:gap-6 lg:gap-8">
+            <div className="hidden md:flex items-center gap-6 lg:gap-8">
+              <Link href="/welcome#features" className="text-sm font-medium text-slate-400 hover:text-white transition-colors">Features</Link>
+              <a href="https://github.com/mfscpayload-690/lumescan/discussions" target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-slate-400 hover:text-white transition-colors">Community</a>
               <Link href="/docs" className="text-sm font-medium text-emerald-500/80 hover:text-emerald-400 transition-colors flex items-center gap-1.5 font-bold">
                 Docs
                 <span className="px-1 py-0.5 bg-emerald-500/10 text-[8px] rounded uppercase">v1</span>
               </Link>
             </div>
-          </div>
 
-          <div className="flex items-center gap-1.5 sm:gap-3 mr-7 sm:mr-0">
-            <a
-              href="https://github.com/mfscpayload-690/lumescan"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="h-9 w-9 sm:h-10 sm:w-10 flex items-center justify-center bg-zinc-900 border border-zinc-800 rounded-lg text-zinc-400 hover:text-white hover:border-zinc-600 transition-all group"
-              title="View Source on GitHub"
-            >
-              <GithubIcon size={16} className="sm:w-[18px] sm:h-[18px]" />
-            </a>
-            <a
-              href="https://buymeacoffee.com/mfscpayload690"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="h-9 px-2 sm:h-10 sm:px-3 hidden min-[380px]:flex items-center justify-center bg-zinc-900 border border-zinc-800 rounded-lg text-amber-400 hover:text-amber-300 hover:border-amber-500/50 transition-all gap-2 group"
-              title="Support LumeScan"
-            >
-              <Coffee size={16} className="sm:w-[18px] sm:h-[18px]" />
-              <span className="text-[10px] font-bold uppercase hidden lg:block">Support</span>
-            </a>
-            <Link
-              href="/"
-              className="h-9 px-3 sm:h-10 sm:px-6 flex items-center justify-center text-xs sm:text-sm font-bold bg-emerald-500 text-black rounded-full hover:bg-emerald-400 transition-all cyber-glow whitespace-nowrap"
-            >
-              <span className="hidden md:inline">Launch App</span>
-              <span className="md:hidden">Launch</span>
-            </Link>
+            <div className="flex items-center gap-1.5 sm:gap-3 mr-7 sm:mr-0">
+              <a
+                href="https://github.com/mfscpayload-690/lumescan"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="h-9 w-9 sm:h-10 sm:w-10 flex items-center justify-center bg-slate-900 border border-slate-800 rounded-lg text-slate-400 hover:text-white hover:border-slate-600 transition-all group"
+                title="View Source on GitHub"
+              >
+                <GithubIcon size={16} className="sm:w-[18px] sm:h-[18px]" />
+              </a>
+              <a
+                href="https://buymeacoffee.com/mfscpayload690"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="h-9 px-2 sm:h-10 sm:px-3 hidden min-[380px]:flex items-center justify-center bg-slate-900 border border-slate-800 rounded-lg text-amber-400 hover:text-amber-300 hover:border-amber-500/50 transition-all gap-2 group"
+                title="Support LumeScan"
+              >
+                <Coffee size={16} className="sm:w-[18px] sm:h-[18px]" />
+                <span className="text-[10px] font-bold uppercase hidden lg:block text-slate-400 group-hover:text-amber-300">Support</span>
+              </a>
+              <Link
+                href="/"
+                className="h-9 px-3 sm:h-10 sm:px-6 flex items-center justify-center text-xs sm:text-sm font-bold bg-emerald-500 text-slate-950 rounded-full hover:bg-emerald-400 transition-all cyber-glow whitespace-nowrap"
+              >
+                <span className="hidden md:inline">Launch App</span>
+                <span className="md:hidden">Launch</span>
+              </Link>
+            </div>
           </div>
         </div>
       </div>

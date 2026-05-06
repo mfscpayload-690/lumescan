@@ -41,7 +41,7 @@ const GithubIcon = ({ size = 24, ...props }: { size?: number } & React.SVGProps<
 
 export const Footer: React.FC = () => {
   return (
-    <footer className="bg-zinc-950 border-t border-white/5 pt-16 pb-8">
+    <footer className="bg-slate-950 border-t border-white/5 pt-16 pb-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-12 mb-16">
           <div className="col-span-2">
@@ -51,7 +51,7 @@ export const Footer: React.FC = () => {
                 LUME<span className="text-emerald-500">SCAN</span>
               </span>
             </Link>
-            <p className="text-zinc-500 text-sm max-w-xs leading-relaxed">
+            <p className="text-slate-500 text-sm max-w-xs leading-relaxed">
               Professional code security audits designed for modern engineering teams. 
               Secure your infrastructure, protect your users, and build with confidence.
             </p>
@@ -59,7 +59,7 @@ export const Footer: React.FC = () => {
 
           <div>
             <h4 className="text-white font-bold text-sm mb-6 uppercase tracking-wider">Product</h4>
-            <ul className="space-y-4 text-sm text-zinc-500">
+            <ul className="space-y-4 text-sm text-slate-500">
               <li><Link href="/welcome#features" className="hover:text-emerald-500 transition-colors">Features</Link></li>
               <li><Link href="/" className="hover:text-emerald-500 transition-colors">Scanner</Link></li>
               <li><Link href="https://github.com/mfscpayload-690/lumescan" target="_blank" className="hover:text-emerald-500 transition-colors">Source Code</Link></li>
@@ -68,7 +68,7 @@ export const Footer: React.FC = () => {
 
           <div>
             <h4 className="text-white font-bold text-sm mb-6 uppercase tracking-wider">Resources</h4>
-            <ul className="space-y-4 text-sm text-zinc-500">
+            <ul className="space-y-4 text-sm text-slate-500">
               <li><Link href="/docs" className="hover:text-emerald-500 transition-colors">Documentation</Link></li>
               <li><Link href="/docs#api" className="hover:text-emerald-500 transition-colors">API Reference</Link></li>
               <li><Link href="/docs#deep-linking" className="hover:text-emerald-500 transition-colors">Deep Linking</Link></li>
@@ -83,19 +83,19 @@ export const Footer: React.FC = () => {
                 href="https://github.com/mfscpayload-690/lumescan" 
                 target="_blank" 
                 rel="noopener noreferrer" 
-                className="p-2 bg-zinc-900 rounded-lg text-zinc-500 hover:text-white hover:bg-zinc-800 transition-all"
+                className="p-2 bg-slate-900 rounded-lg text-slate-500 hover:text-white hover:bg-slate-800 transition-all"
                 title="View on GitHub"
               >
                 <GithubIcon size={20} />
               </a>
-              <a href="#" className="p-2 bg-zinc-900 rounded-lg text-zinc-500 hover:text-white hover:bg-zinc-800 transition-all">
+              <a href="#" className="p-2 bg-slate-900 rounded-lg text-slate-500 hover:text-white hover:bg-slate-800 transition-all">
                 <Globe size={20} />
               </a>
               <a 
                 href="https://www.linkedin.com/in/aravindlal8086" 
                 target="_blank" 
                 rel="noopener noreferrer" 
-                className="p-2 bg-zinc-900 rounded-lg text-zinc-500 hover:text-white hover:bg-[#0077b5] transition-all"
+                className="p-2 bg-slate-900 rounded-lg text-slate-500 hover:text-white hover:bg-[#0077b5] transition-all"
                 title="Connect on LinkedIn"
               >
                 <LinkedinIcon size={20} />
@@ -104,7 +104,7 @@ export const Footer: React.FC = () => {
           </div>
         </div>
 
-        <div className="pt-8 border-t border-white/5 flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-zinc-600 font-medium">
+        <div className="pt-8 border-t border-white/5 flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-slate-600 font-medium">
           <p>© {new Date().getFullYear()} LumeScan Security Inc. All rights reserved.</p>
           <div className="flex items-center gap-8">
             <Link href="#" className="hover:text-white transition-colors">Privacy Policy</Link>

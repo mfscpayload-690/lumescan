@@ -2,8 +2,8 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { 
-  Book, Code, Cpu, Shield, Zap, Globe, 
+import {
+  Book, Code, Cpu, Shield, Zap, Globe,
   Terminal, Server, ArrowRight,
   ShieldCheck, AlertTriangle, FileCode, Search
 } from 'lucide-react';
@@ -44,7 +44,7 @@ const DocsPage = () => {
               <span className="font-bold tracking-tighter text-xl">LUME<span className="text-emerald-500">SCAN</span></span>
               <span className="ml-2 px-2 py-0.5 bg-zinc-800 text-zinc-400 text-[10px] rounded uppercase font-bold tracking-widest">Docs v1.0</span>
             </Link>
-            
+
             <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-zinc-400">
               <a href="#introduction" className="hover:text-white transition-colors">Introduction</a>
               <a href="#api" className="hover:text-white transition-colors">API Reference</a>
@@ -113,7 +113,7 @@ const DocsPage = () => {
             <section id="architecture" className="space-y-6">
               <h2 className="text-3xl font-bold tracking-tight">System Architecture</h2>
               <p className="text-zinc-400 leading-relaxed">
-                The platform is split into a Next.js 15+ workstation frontend and a high-performance FastAPI backend. 
+                The platform is split into a Next.js 15+ workstation frontend and a high-performance FastAPI backend.
               </p>
               <div className="p-8 bg-black border border-zinc-800 rounded-2xl font-mono text-xs overflow-x-auto">
                 <div className="flex flex-col gap-4">
@@ -210,9 +210,9 @@ const DocsPage = () => {
                   <span className="text-[10px] text-emerald-500 font-mono font-bold">AVAILABLE NOW</span>
                 </div>
                 <div className="bg-black p-4 rounded-xl border border-zinc-800 flex items-center justify-between group">
-                  <code className="text-emerald-400 text-sm">lumescan-up.railway.app/<span className="text-white">owner</span>/<span className="text-white">repo</span></code>
+                  <code className="text-emerald-400 text-sm">lumescan.vercel.app/<span className="text-white">owner</span>/<span className="text-white">repo</span></code>
                   <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2 text-[10px] text-zinc-500 font-bold">
-                    EXAMPLE: lumescan-up.railway.app/nextjs/next.js
+                    EXAMPLE: lumescan.vercel.app/nextjs/next.js
                   </div>
                 </div>
               </div>

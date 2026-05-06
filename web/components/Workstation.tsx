@@ -2,10 +2,10 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { 
-  Terminal, ShieldCheck, Zap, AlertTriangle, Copy, Download, 
-  FileDown, FileCode, FileText, Square, Play, Star, GitFork, 
-  Clock, Shield, Code, Cpu, Globe, Activity, Timer, Coffee 
+import {
+  Terminal, ShieldCheck, Zap, AlertTriangle, Copy, Download,
+  FileDown, FileCode, FileText, Square, Play, Star, GitFork,
+  Clock, Shield, Code, Cpu, Globe, Activity, Timer, Coffee
 } from 'lucide-react';
 
 interface LogEntry {
@@ -83,15 +83,15 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
   useEffect(() => {
     if (!hasBooted.current) {
       const bootSequence = [
-        { msg: 'LumeScan OS v1.0.4 initializing...', type: 'info' as const, delay: 100 },
-        { msg: 'Establishing encrypted neural link to Groq API...', type: 'info' as const, delay: 600 },
-        { msg: 'Subsystems Online: Logic_Guard, Config_Sentry, Secret_Vault.', type: 'success' as const, delay: 1100 },
-        { msg: 'CONNECTION SECURE. Ready for deployment.', type: 'success' as const, delay: 1600 }
+        { msg: 'LumeScan Professional v1.0.4 initializing...', type: 'info' as const, delay: 100 },
+        { msg: 'Establishing secure link to analysis cluster...', type: 'info' as const, delay: 600 },
+        { msg: 'Services Online: Security_Core, Dependency_Sentry, Secret_Vault.', type: 'success' as const, delay: 1100 },
+        { msg: 'SESSION AUTHORIZED. System ready.', type: 'success' as const, delay: 1600 }
       ];
 
       bootSequence.forEach((item) => {
         setTimeout(() => {
-          addLog(item.msg, item.msg.includes('SECURE') || item.msg.includes('Online') ? 'success' : 'info');
+          addLog(item.msg, item.msg.includes('AUTHORIZED') || item.msg.includes('Online') ? 'success' : 'info');
         }, item.delay);
       });
 
@@ -170,13 +170,13 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (isScanning) return;
-    
+
     const trimmedRepo = repoUrl.trim();
     if (!trimmedRepo) {
       addLog('Validation Error: Repository path cannot be empty.', 'error');
       return;
     }
-    
+
     executeScan(0);
   };
 
@@ -361,12 +361,12 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
   };
 
   return (
-    <div className="min-h-screen bg-[#0c0c0e] text-white p-6">
+    <div className="min-h-screen bg-slate-950 text-white p-6 selection:bg-emerald-500/30">
       <div className="max-w-6xl mx-auto">
-        {/* Header Scrim */}
-        <div className="fixed top-0 left-0 right-0 h-32 bg-gradient-to-b from-black to-transparent z-30 pointer-events-none opacity-80" />
-        
-        <header className="sticky top-4 z-40 flex items-center justify-between mb-12 bg-zinc-900/50 backdrop-blur-xl backdrop-saturate-150 border border-white/10 px-6 py-4 rounded-2xl shadow-2xl shadow-black/50 transition-all">
+        {/* Subtle Decorative Background */}
+        <div className="fixed inset-0 bg-[radial-gradient(circle_at_50%_-20%,rgba(16,185,129,0.05),transparent_50%)] pointer-events-none" />
+
+        <header className="sticky top-4 z-40 flex items-center justify-between mb-12 bg-slate-900/70 backdrop-blur-xl border border-slate-800 px-6 py-4 rounded-2xl shadow-2xl shadow-black/20 transition-all">
           <Link href="/welcome" className="flex items-center gap-3 group">
             <img src="/lumescan-logo.png" alt="LumeScan Logo" className="w-10 h-10 object-contain rounded-lg group-hover:scale-105 transition-transform" />
             <h1 className="text-2xl font-bold tracking-tighter text-white group-hover:text-emerald-400 transition-colors">LUME<span className="text-emerald-500">SCAN</span></h1>
@@ -376,7 +376,7 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
               href="https://github.com/mfscpayload-690/lumescan"
               target="_blank"
               rel="noopener noreferrer"
-              className="p-2 bg-zinc-900 border border-zinc-800 rounded-lg text-zinc-400 hover:text-white hover:border-zinc-600 transition-all group"
+              className="p-2 bg-slate-800 border border-slate-700/50 rounded-lg text-slate-400 hover:text-white hover:border-slate-500 transition-all group"
               title="View Source on GitHub"
             >
               <Github size={20} />
@@ -385,11 +385,11 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
               href="https://buymeacoffee.com/mfscpayload690"
               target="_blank"
               rel="noopener noreferrer"
-              className="p-2 bg-zinc-900 border border-zinc-800 rounded-lg text-amber-400 hover:text-amber-300 hover:border-amber-500/50 transition-all flex items-center gap-2 group"
+              className="p-2 bg-slate-800 border border-slate-700/50 rounded-lg text-amber-400 hover:text-amber-300 hover:border-amber-500/50 transition-all flex items-center gap-2 group"
               title="Support LumeScan"
             >
               <Coffee size={20} />
-              <span className="text-[10px] font-bold uppercase hidden sm:block">Support</span>
+              <span className="text-[10px] font-bold uppercase hidden sm:block text-slate-400 group-hover:text-amber-300">Support</span>
             </a>
           </div>
         </header>
@@ -397,23 +397,23 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Controls */}
           <div className="lg:col-span-1 space-y-6">
-            <div className="p-6 bg-zinc-900/40 border border-zinc-800/60 rounded-xl backdrop-blur-md relative z-20">
+            <div className="p-6 bg-slate-900/40 border border-slate-800 rounded-xl backdrop-blur-md relative z-20">
               <h2 className="text-sm font-semibold text-emerald-500 uppercase tracking-wider mb-4">Repository Config</h2>
               <form onSubmit={handleFormSubmit} className="space-y-4">
                 <div className="relative" ref={dropdownRef}>
-                  <label className="block text-xs text-zinc-400 font-bold mb-2">GITHUB REPO (URL OR OWNER/REPO)</label>
+                  <label className="block text-xs text-slate-400 font-bold mb-2 uppercase tracking-tighter">Target Repository [ or Repo URL ]</label>
                   <input
                     type="text"
                     value={repoUrl}
                     onChange={(e) => setRepoUrl(e.target.value)}
                     onFocus={() => repoUrl.length >= 2 && !repoUrl.startsWith('http') && setShowDropdown(true)}
                     placeholder="e.g. owner/repo"
-                    className="w-full bg-zinc-950/50 border border-zinc-800 px-4 py-3 rounded-lg text-sm focus:outline-none focus:border-emerald-500 transition-all cyber-glow placeholder:text-zinc-600"
+                    className="w-full bg-slate-950/50 border border-slate-800 px-4 py-3 rounded-lg text-sm focus:outline-none focus:border-emerald-500 transition-all cyber-glow placeholder:text-slate-600"
                   />
 
                   {/* Results Dropdown */}
                   {showDropdown && searchResults.length > 0 && (
-                    <div className="absolute z-50 w-full mt-2 bg-zinc-900 border border-zinc-800 rounded-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+                    <div className="absolute z-50 w-full mt-2 bg-slate-900 border border-slate-800 rounded-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
                       {searchResults.map((result, idx) => (
                         <button
                           key={idx}
@@ -422,11 +422,11 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
                             setRepoUrl(result.full_name);
                             setShowDropdown(false);
                           }}
-                          className="w-full text-left px-4 py-3 hover:bg-zinc-800 border-b border-zinc-800 last:border-0 transition-colors"
+                          className="w-full text-left px-4 py-3 hover:bg-slate-800 border-b border-slate-800 last:border-0 transition-colors"
                         >
                           <div className="text-sm font-bold text-emerald-400">{result.full_name}</div>
                           {result.description && (
-                            <div className="text-[10px] text-gray-500 truncate">{result.description}</div>
+                            <div className="text-[10px] text-slate-500 truncate">{result.description}</div>
                           )}
                         </button>
                       ))}
@@ -445,9 +445,9 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
                   <button
                     type="submit"
                     disabled={!repoUrl.trim()}
-                    className="w-full py-3 bg-emerald-500 text-black font-bold rounded hover:bg-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+                    className="w-full py-3 bg-emerald-500 text-slate-950 font-bold rounded hover:bg-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
                   >
-                    <Play size={16} fill="black" /> INITIALIZE AUDIT
+                    <Play size={16} fill="currentColor" /> INITIALIZE AUDIT
                   </button>
                 )}
               </form>
@@ -461,38 +461,38 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
               )}
             </div>
 
-            <div className="p-6 bg-zinc-900/40 border border-zinc-800/60 rounded-xl backdrop-blur-md relative z-10">
-              <h2 className="text-sm font-semibold text-zinc-300 uppercase tracking-wider mb-3">Audit Scope</h2>
-              <ul className="text-xs space-y-2 text-zinc-400">
-                <li>• Logic (Python/JS Controllers)</li>
-                <li>• Config (Dependencies/CORS)</li>
-                <li>• Secrets (.env/Keys)</li>
-                <li>• Workflows (CI/CD)</li>
+            <div className="p-6 bg-slate-900/40 border border-slate-800 rounded-xl backdrop-blur-md relative z-10">
+              <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">Audit Scope</h2>
+              <ul className="text-xs space-y-2 text-slate-400">
+                <li className="flex items-center gap-2"><div className="w-1 h-1 bg-emerald-500 rounded-full" /> Logic (Python/JS Controllers)</li>
+                <li className="flex items-center gap-2"><div className="w-1 h-1 bg-emerald-500 rounded-full" /> Config (Dependencies/CORS)</li>
+                <li className="flex items-center gap-2"><div className="w-1 h-1 bg-emerald-500 rounded-full" /> Secrets (.env/Keys)</li>
+                <li className="flex items-center gap-2"><div className="w-1 h-1 bg-emerald-500 rounded-full" /> Workflows (CI/CD)</li>
               </ul>
             </div>
 
             {/* Repository Pulse */}
             {repoMetadata ?
-              <div className="p-6 bg-zinc-900/50 border border-zinc-800 rounded-lg animate-in fade-in slide-in-from-left-4 duration-500">
+              <div className="p-6 bg-slate-900/50 border border-slate-800 rounded-lg animate-in fade-in slide-in-from-left-4 duration-500">
                 <h2 className="text-sm font-semibold text-blue-400 uppercase tracking-wider mb-4 flex items-center gap-2">
                   <Zap size={14} /> REPOSITORY PULSE
                 </h2>
 
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="p-3 bg-black border border-zinc-800 rounded flex flex-col gap-1">
-                      <div className="text-zinc-500 flex items-center gap-1.5 text-[10px] uppercase font-bold">
+                    <div className="p-3 bg-slate-950 border border-slate-800 rounded flex flex-col gap-1">
+                      <div className="text-slate-500 flex items-center gap-1.5 text-[10px] uppercase font-bold">
                         <Star size={10} className="text-amber-400" /> Stars
                       </div>
-                      <div className="text-lg font-bold text-zinc-200 tracking-tighter">
+                      <div className="text-lg font-bold text-slate-200 tracking-tighter">
                         {repoMetadata.stars?.toLocaleString() || '0'}
                       </div>
                     </div>
-                    <div className="p-3 bg-black border border-zinc-800 rounded flex flex-col gap-1">
-                      <div className="text-zinc-500 flex items-center gap-1.5 text-[10px] uppercase font-bold">
+                    <div className="p-3 bg-slate-950 border border-slate-800 rounded flex flex-col gap-1">
+                      <div className="text-slate-500 flex items-center gap-1.5 text-[10px] uppercase font-bold">
                         <GitFork size={10} className="text-blue-400" /> Forks
                       </div>
-                      <div className="text-lg font-bold text-zinc-200 tracking-tighter">
+                      <div className="text-lg font-bold text-slate-200 tracking-tighter">
                         {repoMetadata.forks?.toLocaleString() || '0'}
                       </div>
                     </div>
@@ -500,24 +500,24 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
 
                   <div className="space-y-2.5">
                     <div className="flex items-center justify-between text-xs">
-                      <span className="text-zinc-500 flex items-center gap-2 font-bold uppercase tracking-tighter">
+                      <span className="text-slate-500 flex items-center gap-2 font-bold uppercase tracking-tighter">
                         <Code size={12} className="text-emerald-500" /> Language
                       </span>
-                      <span className="text-zinc-300 font-mono">{repoMetadata.language || 'Multi'}</span>
+                      <span className="text-slate-300 font-mono">{repoMetadata.language || 'Multi'}</span>
                     </div>
                     <div className="flex items-center justify-between text-xs">
-                      <span className="text-zinc-500 flex items-center gap-2 font-bold uppercase tracking-tighter">
+                      <span className="text-slate-500 flex items-center gap-2 font-bold uppercase tracking-tighter">
                         <Shield size={12} className="text-purple-500" /> License
                       </span>
-                      <span className="text-zinc-300 font-mono truncate max-w-[120px]" title={repoMetadata.license}>
+                      <span className="text-slate-300 font-mono truncate max-w-[120px]" title={repoMetadata.license}>
                         {repoMetadata.license}
                       </span>
                     </div>
                     <div className="flex items-center justify-between text-xs">
-                      <span className="text-zinc-500 flex items-center gap-2 font-bold uppercase tracking-tighter">
+                      <span className="text-slate-500 flex items-center gap-2 font-bold uppercase tracking-tighter">
                         <Clock size={12} className="text-rose-500" /> Last Pulse
                       </span>
-                      <span className="text-zinc-300 font-mono">
+                      <span className="text-slate-300 font-mono">
                         {new Date(repoMetadata.updated_at).toLocaleDateString()}
                       </span>
                     </div>
@@ -532,35 +532,35 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
                   )}
                 </div>
               </div>
-            :
-              <div className="p-6 bg-zinc-900/50 border border-zinc-800 rounded-lg space-y-6">
+              :
+              <div className="p-6 bg-slate-900/50 border border-slate-800 rounded-lg space-y-6">
                 <h2 className="text-sm font-semibold text-emerald-500 uppercase tracking-wider flex items-center gap-2">
-                  <Cpu size={14} className="animate-pulse" /> WORKSTATION COMMAND
+                  <Activity size={14} className="animate-pulse" /> SYSTEM STATUS
                 </h2>
 
                 {/* Specs Grid */}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <div className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest">Neural Core</div>
-                    <div className="text-[11px] text-zinc-300 font-mono truncate">Llama-3.3-70b-Groq</div>
+                    <div className="text-[10px] text-slate-500 uppercase font-bold tracking-widest">Analysis Engine</div>
+                    <div className="text-[11px] text-slate-300 font-mono truncate">Llama-3.3-70b-Groq</div>
                   </div>
                   <div className="space-y-1 text-right">
-                    <div className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest">Security Protocol</div>
-                    <div className="text-[11px] text-zinc-300 font-mono">NDJSON / AES-256-V2</div>
+                    <div className="text-[10px] text-slate-500 uppercase font-bold tracking-widest">Encryption Standard</div>
+                    <div className="text-[11px] text-slate-300 font-mono">NDJSON / AES-256-V2</div>
                   </div>
                 </div>
 
                 {/* Threat Meter */}
-                <div className="pt-4 border-t border-zinc-800/50">
+                <div className="pt-4 border-t border-slate-800/50">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Threat Level</span>
+                    <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Threat Level</span>
                     <span className={`text-[10px] font-bold uppercase ${findings.length === 0 ? 'text-emerald-500' :
                       findings.some(f => f.severity === 'Critical') ? 'text-rose-500 animate-pulse' : 'text-amber-500'
                       }`}>
                       {findings.length === 0 ? 'SECURE' : findings.some(f => f.severity === 'Critical') ? 'CRITICAL RISK' : 'ELEVATED'}
                     </span>
                   </div>
-                  <div className="h-2 w-full bg-black rounded-full overflow-hidden border border-zinc-800">
+                  <div className="h-2 w-full bg-slate-950 rounded-full overflow-hidden border border-slate-800">
                     <div
                       className={`h-full transition-all duration-500 ${findings.length === 0 ? 'bg-emerald-500 w-0' :
                         findings.some(f => f.severity === 'Critical') ? 'bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.5)]' : 'bg-amber-500'
@@ -571,16 +571,16 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
                 </div>
 
                 {/* Status & Timer Bar */}
-                <div className="flex items-center justify-between pt-4 border-t border-zinc-800/50">
+                <div className="flex items-center justify-between pt-4 border-t border-slate-800/50">
                   <div className="flex items-center gap-2">
                     <div className={`w-2 h-2 rounded-full ${isScanning ? 'bg-blue-500 animate-pulse' : 'bg-emerald-500'} shadow-[0_0_8px_rgba(16,185,129,0.3)]`} />
-                    <span className="text-[10px] text-zinc-400 font-bold tracking-widest uppercase">
+                    <span className="text-[10px] text-slate-400 font-bold tracking-widest uppercase">
                       {isScanning ? 'SCANNING...' : 'SYSTEM: IDLE'}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Timer size={12} className="text-zinc-500" />
-                    <span className="text-xs text-zinc-300 font-mono">
+                    <Timer size={12} className="text-slate-500" />
+                    <span className="text-xs text-slate-300 font-mono">
                       {Math.floor(elapsedTime / 60).toString().padStart(2, '0')}:
                       {(elapsedTime % 60).toString().padStart(2, '0')}s
                     </span>
@@ -591,11 +591,11 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
           </div>
 
           {/* Status Log */}
-          <div className="md:col-span-2 bg-[#0c0c0c] border border-zinc-800 rounded-xl overflow-hidden flex flex-col h-[700px]">
-            <div className="bg-[#111] border-b border-[#333] p-4 flex items-center justify-between">
+          <div className="md:col-span-2 bg-slate-950 border border-slate-800 rounded-xl overflow-hidden flex flex-col h-[700px] shadow-inner">
+            <div className="bg-slate-900/80 border-b border-slate-800 p-4 flex items-center justify-between backdrop-blur-sm">
               <div className="flex items-center gap-2">
-                <Terminal size={18} className="text-[#10b981]" />
-                <span className="font-mono text-sm font-bold tracking-widest text-zinc-300">STATUS LOG</span>
+                <Terminal size={18} className="text-emerald-500" />
+                <span className="font-mono text-sm font-bold tracking-widest text-slate-300">ANALYSIS LOG</span>
               </div>
               <button
                 onClick={() => {
@@ -603,7 +603,7 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
                   navigator.clipboard.writeText(logText);
                   addLog('Logs copied to clipboard!', 'success');
                 }}
-                className="flex items-center gap-2 text-xs font-mono text-[#666] hover:text-[#10b981] transition-colors group"
+                className="flex items-center gap-2 text-xs font-mono text-slate-500 hover:text-emerald-500 transition-colors group"
                 title="Copy Logs"
               >
                 <Copy size={14} className="group-hover:scale-110 transition-transform" />
@@ -611,15 +611,15 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6 font-mono text-sm space-y-2 custom-scrollbar">
+            <div className="flex-1 overflow-y-auto p-6 font-mono text-sm space-y-2 custom-scrollbar bg-slate-950/30">
               {logs.map((log, idx) => (
                 <div key={log.id} className="flex gap-3">
-                  <span className="text-zinc-500 shrink-0">[{log.timestamp}]</span>
+                  <span className="text-slate-500 shrink-0 select-none">[{log.timestamp}]</span>
                   <span className={`
-                      ${log.type === 'success' ? 'text-emerald-500' : ''}
-                      ${log.type === 'warning' ? 'text-amber-500' : ''}
-                      ${log.type === 'error' ? 'text-rose-500' : ''}
-                      ${log.type === 'info' ? 'text-blue-400' : ''}
+                      ${log.type === 'success' ? 'text-emerald-400' : ''}
+                      ${log.type === 'warning' ? 'text-amber-400/90' : ''}
+                      ${log.type === 'error' ? 'text-rose-400' : ''}
+                      ${log.type === 'info' ? 'text-slate-400' : ''}
                     `}>
                     {log.message}
                     {idx === logs.length - 1 && (
@@ -639,29 +639,29 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-bold flex items-center gap-2">
                 <AlertTriangle className="text-amber-500" />
-                SECURITY FINDINGS <span className="text-xs bg-zinc-800 px-2 py-1 rounded text-zinc-400 font-mono">{findings.length} ISSUES</span>
+                SECURITY FINDINGS <span className="text-xs bg-slate-800 px-2 py-1 rounded text-slate-400 font-mono tracking-tighter">{findings.length} ISSUES DETECTED</span>
               </h2>
 
               <div className="flex items-center gap-2">
-                <span className="text-[10px] text-zinc-500 font-mono hidden md:block">EXPORT AI PACKAGE:</span>
+                <span className="text-[10px] text-slate-500 font-mono hidden md:block uppercase tracking-wider">AI REMEDIATION PACKAGE:</span>
                 <div className="flex gap-1">
                   <button
                     onClick={() => exportResults('xml')}
-                    className="p-2 bg-zinc-900 border border-zinc-800 rounded hover:border-emerald-500/50 text-zinc-400 hover:text-emerald-500 transition-all flex items-center gap-2 text-[10px] font-bold"
+                    className="p-2 bg-slate-900 border border-slate-800 rounded hover:border-emerald-500/50 text-slate-400 hover:text-emerald-500 transition-all flex items-center gap-2 text-[10px] font-bold"
                     title="Export XML"
                   >
                     <FileCode size={14} /> XML
                   </button>
                   <button
                     onClick={() => exportResults('yaml')}
-                    className="p-2 bg-zinc-900 border border-zinc-800 rounded hover:border-emerald-500/50 text-zinc-400 hover:text-emerald-500 transition-all flex items-center gap-2 text-[10px] font-bold"
+                    className="p-2 bg-slate-900 border border-slate-800 rounded hover:border-emerald-500/50 text-slate-400 hover:text-emerald-500 transition-all flex items-center gap-2 text-[10px] font-bold"
                     title="Export YAML"
                   >
                     <FileDown size={14} /> YAML
                   </button>
                   <button
                     onClick={() => exportResults('markdown')}
-                    className="p-2 bg-zinc-900 border border-zinc-800 rounded hover:border-emerald-500/50 text-zinc-400 hover:text-emerald-500 transition-all flex items-center gap-2 text-[10px] font-bold"
+                    className="p-2 bg-slate-900 border border-slate-800 rounded hover:border-emerald-500/50 text-slate-400 hover:text-emerald-500 transition-all flex items-center gap-2 text-[10px] font-bold"
                     title="Export Markdown"
                   >
                     <FileText size={14} /> MD
@@ -672,7 +672,7 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {findings.map((finding, idx) => (
-                <div key={idx} className="group p-5 bg-[#0a0a0a] border border-[#333] rounded-xl hover:border-emerald-500/50 transition-all duration-300 relative overflow-hidden">
+                <div key={idx} className="group p-5 bg-slate-900/50 border border-slate-800 rounded-xl hover:border-emerald-500/50 transition-all duration-300 relative overflow-hidden shadow-lg shadow-black/20">
                   {/* Category Accent */}
                   <div className={`absolute top-0 right-0 w-24 h-24 -mr-12 -mt-12 opacity-5 rotate-45 
                     ${finding.category === 'Logic' ? 'bg-blue-500' : 'bg-emerald-500'}`}
@@ -681,21 +681,21 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex flex-col gap-1">
                       <div className="flex items-center gap-2">
-                        <span className="text-[10px] text-[#666] font-mono tracking-widest uppercase">FILE PATH</span>
-                        <span className={`text-[8px] px-1.5 py-0.5 rounded border border-zinc-700 font-bold uppercase tracking-tighter
+                        <span className="text-[10px] text-slate-500 font-mono tracking-widest uppercase">Target Module</span>
+                        <span className={`text-[8px] px-1.5 py-0.5 rounded border border-slate-700 font-bold uppercase tracking-tighter
                           ${finding.category === 'Logic' ? 'text-blue-400 border-blue-500/30' : 'text-emerald-400 border-emerald-500/30'}`}>
                           {finding.category || 'GENERAL'}
                         </span>
                       </div>
-                      <code className="text-xs text-emerald-400 truncate max-w-[250px]">{finding.file}</code>
+                      <code className="text-xs text-emerald-400/90 truncate max-w-[250px] font-mono">{finding.file}</code>
                     </div>
                     <span className={`
                       px-3 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase
-                      ${finding.severity === 'Critical' ? 'bg-rose-500/20 text-rose-500 border border-rose-500/50 shadow-[0_0_15px_rgba(244,63,94,0.3)]' : ''}
+                      ${finding.severity === 'Critical' ? 'bg-rose-500/20 text-rose-500 border border-rose-500/50 shadow-[0_0_15px_rgba(244,63,94,0.2)]' : ''}
                       ${finding.severity === 'High' ? 'bg-orange-500/20 text-orange-500 border border-orange-500/50' : ''}
                       ${finding.severity === 'Medium' ? 'bg-amber-500/20 text-amber-500 border border-amber-500/50' : ''}
                       ${finding.severity === 'Low' ? 'bg-blue-500/20 text-blue-500 border border-blue-500/50' : ''}
-                      ${finding.severity === 'Informational' ? 'bg-zinc-500/20 text-zinc-500 border border-zinc-500/50' : ''}
+                      ${finding.severity === 'Informational' ? 'bg-slate-500/20 text-slate-500 border border-slate-500/50' : ''}
                     `}>
                       {finding.severity}
                     </span>
@@ -703,13 +703,13 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
 
                   <div className="space-y-4">
                     <div>
-                      <h4 className="text-xs font-bold text-zinc-400 mb-1">DETECTION</h4>
-                      <p className="text-sm text-zinc-300 leading-relaxed">{finding.description}</p>
+                      <h4 className="text-xs font-bold text-slate-400 mb-1 uppercase tracking-tighter">Diagnostic Output</h4>
+                      <p className="text-sm text-slate-300 leading-relaxed font-sans">{finding.description}</p>
                     </div>
 
                     <div className="p-3 bg-emerald-500/5 border border-emerald-500/20 rounded-lg group/rem relative">
-                      <h4 className="text-[10px] font-bold text-emerald-500 mb-1 uppercase tracking-tighter">REMEDIATION</h4>
-                      <p className="text-xs text-emerald-200/70">{finding.recommendation}</p>
+                      <h4 className="text-[10px] font-bold text-emerald-500/80 mb-1 uppercase tracking-tighter">Recommended Patch</h4>
+                      <p className="text-xs text-emerald-200/60 font-sans leading-relaxed">{finding.recommendation}</p>
                       <button
                         onClick={() => {
                           navigator.clipboard.writeText(finding.recommendation);

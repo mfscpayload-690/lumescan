@@ -62,9 +62,9 @@ export const Features: React.FC = () => {
           </div>
           <h2 className="text-4xl md:text-5xl lg:text-7xl font-extrabold text-white tracking-tight leading-[1.05] reveal reveal-up reveal-delay-2">
             Comprehensive Protection <br className="hidden sm:block" />
-            <span className="text-gradient brightness-125">for Modern Development</span>
+            <span className="text-gradient brightness-110">for Modern Development</span>
           </h2>
-          <p className="text-zinc-400 max-w-3xl mx-auto text-base md:text-xl leading-relaxed reveal reveal-up reveal-delay-3">
+          <p className="text-slate-400 max-w-3xl mx-auto text-base md:text-xl leading-relaxed reveal reveal-up reveal-delay-3">
             LumeScan combines traditional static analysis with modern AI to provide a <span className="text-white font-medium">security suite</span> that works at the speed of your team.
           </p>
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] bg-emerald-500/5 blur-[120px] -z-10 pointer-events-none" />
@@ -74,7 +74,7 @@ export const Features: React.FC = () => {
           {features.map((feature, idx) => (
             <div 
               key={idx}
-              className={`group p-8 rounded-2xl border border-white/5 bg-zinc-900/30 hover:bg-zinc-900/60 hover:border-emerald-500/30 transition-all duration-300 backdrop-blur-sm reveal reveal-up reveal-delay-${(idx % 4) + 1}`}
+              className={`group p-8 rounded-2xl border border-slate-800 bg-slate-900/20 hover:bg-slate-900/40 hover:border-emerald-500/30 transition-all duration-300 backdrop-blur-sm reveal reveal-up reveal-delay-${idx + 1}`}
             >
               <div className={`p-3 w-fit rounded-xl ${feature.bg} ${feature.color} mb-6 group-hover:scale-110 transition-transform`}>
               <feature.icon size={24} />
@@ -84,12 +84,12 @@ export const Features: React.FC = () => {
                 {feature.title}
               </h3>
               {feature.isComingSoon && (
-                <span className="px-2 py-0.5 rounded-full bg-zinc-800/50 border border-zinc-700/50 text-[9px] font-bold text-zinc-500 uppercase tracking-tighter">
+                <span className="px-2 py-0.5 rounded-full bg-slate-800/50 border border-slate-700/50 text-[9px] font-bold text-slate-500 uppercase tracking-tighter">
                   Coming Soon
                 </span>
               )}
             </div>
-              <p className="text-zinc-400 text-sm leading-relaxed mb-6">
+              <p className="text-slate-400 text-sm leading-relaxed mb-6">
                 {feature.description}
               </p>
               <div className="flex items-center gap-2 text-sm font-bold text-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity">
