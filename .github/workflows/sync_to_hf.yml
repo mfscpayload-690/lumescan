@@ -17,4 +17,13 @@ jobs:
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
+          # Remove the web folder locally in the runner so it's not sent to HF
+          rm -rf web
+          # Configure git to allow a temporary commit
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          # Commit the removal of web/ folder
+          git add .
+          git commit -m "Strip frontend for HF sync"
+          # Push to HF Space
           git push -f https://mfscpayload-690:$HF_TOKEN@huggingface.co/spaces/mfscpayload-690/lumescan-api main
