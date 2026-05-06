@@ -17,13 +17,21 @@ jobs:
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
-          # Remove the web folder locally in the runner so it's not sent to HF
-          rm -rf web
-          # Configure git to allow a temporary commit
+          # Create a fresh, temporary directory for the push
+          mkdir deploy_dir
+          
+          # Copy only the files needed for the backend
+          cp -r server/* deploy_dir/
+          cp Dockerfile deploy_dir/
+          cp README.md deploy_dir/
+          
+          # Go into the deploy directory and start a BRAND NEW git repo
+          cd deploy_dir
+          git init -b main
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
-          # Commit the removal of web/ folder
+          
+          # Add everything and push - this has ZERO history of the binary files
           git add .
-          git commit -m "Strip frontend for HF sync"
-          # Push to HF Space
+          git commit -m "deploy: fresh backend build"
           git push -f https://mfscpayload-690:$HF_TOKEN@huggingface.co/spaces/mfscpayload-690/lumescan-api main
