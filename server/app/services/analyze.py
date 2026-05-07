@@ -32,7 +32,9 @@ class AnalyzeService:
                     continue
         return ""
 
-    def _generate_prompt(self, owner: str, repo: str, path: str, content: str, category: str) -> str:
+    def _generate_prompt(
+        self, owner: str, repo: str, path: str, content: str, category: str
+    ) -> str:
         """
         Generates a security audit prompt for the AI.
         """
@@ -56,7 +58,9 @@ class AnalyzeService:
         Output valid JSON with "findings" array (file, line, message, severity, title).
         """
 
-    async def analyze_file(self, owner: str, repo: str, path: str, category: str = "General") -> dict:
+    async def analyze_file(
+        self, owner: str, repo: str, path: str, category: str = "General"
+    ) -> dict:
         """
         Performs a security-focused analysis of a repository file.
         """

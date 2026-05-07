@@ -168,7 +168,7 @@ const DocsPage = () => {
               </Link>
               <Link href="https://github.com/mfscpayload-690/lumescan" className="px-8 py-4 bg-slate-800 text-white rounded-2xl hover:bg-slate-700 transition-all font-bold border border-white/5">
                 View on GitHub
-              </a>
+              </Link>
             </div>
           </div>
         </div>

@@ -1,9 +1,12 @@
+import asyncio
+import json
 import re
 import traceback
 
 import httpx
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from app.core.config import settings
@@ -126,7 +129,11 @@ async def init_scan(request: ScanRequest):
             metadata = {}
             if meta_response.status_code == 200:
                 m = meta_response.json()
-                languages_data = languages_response.json() if languages_response.status_code == 200 else {}
+                languages_data = (
+                    languages_response.json()
+                    if languages_response.status_code == 200
+                    else {}
+                )
                 metadata = {
                     "full_name": m.get("full_name"),
                     "description": m.get("description"),
@@ -134,7 +141,11 @@ async def init_scan(request: ScanRequest):
                     "forks": m.get("forks_count"),
                     "language": m.get("language"),
                     "languages": list(languages_data.keys()),
-                    "license": m.get("license", {}).get("name") if m.get("license") else "No License",
+                    "license": (
+                        m.get("license", {}).get("name")
+                        if m.get("license")
+                        else "No License"
+                    ),
                     "updated_at": m.get("updated_at"),
                     "open_issues": m.get("open_issues_count"),
                 }
@@ -169,7 +180,10 @@ async def init_scan(request: ScanRequest):
             
             next_cursor = None
             if total_found > request.offset + 50:
-                next_cursor = f"Showing {request.offset + 1}-{request.offset + len(files)} of {total_found}."
+                next_cursor = (
+                    f"Showing {request.offset + 1}-"
+                    f"{request.offset + len(files)} of {total_found}."
+                )
             
             return {
                 "owner": owner,
@@ -192,9 +206,6 @@ async def analyze_scan(request: AnalyzeRequest):
     """
     Analyzes files using the AI service.
     """
-    from fastapi.responses import StreamingResponse
-    import asyncio
-    import json
     
     async def generate_results():
         for file_info in request.files:

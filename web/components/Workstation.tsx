@@ -1,12 +1,23 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import Link from 'next/link';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import Image from 'next/image';
 import {
-  Terminal, Zap, AlertTriangle, Copy,
-  FileCode, FileText, Square, Play, Star, GitFork,
-  Clock, Shield, ChevronDown, ChevronUp, Package, AlertCircle, Coffee
+  CheckCircle2,
+  Search,
+  Zap,
+  Activity,
+  History,
+  ShieldCheck,
+  Globe,
+  Star,
+  GitFork,
+  Clock,
+  ExternalLink,
+  Github,
+  X,
+  Code2,
+  Terminal,
 } from 'lucide-react';
 
 interface LogEntry {
@@ -16,27 +27,7 @@ interface LogEntry {
   timestamp: string;
 }
 
-const getLanguageColor = (lang: string) => {
-  const colors: Record<string, string> = {
-    'JavaScript': '#f1e05a',
-    'TypeScript': '#3178c6',
-    'Python': '#3572A5',
-    'HTML': '#e34c26',
-    'CSS': '#563d7c',
-    'Rust': '#dea584',
-    'Go': '#00ADD8',
-    'C++': '#f34b7d',
-    'Java': '#b07219',
-    'PHP': '#4F5D95',
-    'Ruby': '#701516',
-    'Shell': '#89e051',
-    'Vue': '#41b883',
-    'React': '#61dafb',
-    'C': '#555555',
-    'C#': '#178600',
-  };
-  return colors[lang] || '#8b949e';
-};
+
 
 const GithubIcon = ({ size = 24, ...props }: { size?: number } & React.SVGProps<SVGSVGElement>) => (
   <svg
@@ -233,7 +224,8 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
       }
 
       addLog('Scan sequence completed.', 'success');
-    } catch (error: any) {
+    } catch (err: unknown) {
+      const error = err as Error;
       if (error.name === 'AbortError') {
         addLog('Scan aborted by user.', 'warning');
       } else {
@@ -325,10 +317,13 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
 
   useEffect(() => {
     if (initialRepo && !isScanning) {
-      executeScan(0, initialRepo);
+      // Use setTimeout to avoid synchronous setState inside useEffect
+      const timer = setTimeout(() => {
+        executeScan(0, initialRepo);
+      }, 0);
+      return () => clearTimeout(timer);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [initialRepo, isScanning, executeScan]);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-in fade-in duration-700">
