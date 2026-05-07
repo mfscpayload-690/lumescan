@@ -121,10 +121,17 @@ async def init_scan(request: ScanRequest):
                 meta_res = await client.get(repo_meta_url)
                 if meta_res.status_code == 200:
                     m = meta_res.json()
+                    # Fetch all languages
+                    lang_url = f"https://api.github.com/repos/{owner}/{repo}/languages"
+                    lang_res = await client.get(lang_url)
+                    languages_data = lang_res.json() if lang_res.status_code == 200 else {}
+                    
                     metadata = {
+                        "full_name": m.get("full_name"),
                         "stars": m.get("stargazers_count"),
                         "forks": m.get("forks_count"),
                         "language": m.get("language"),
+                        "languages": list(languages_data.keys()),
                         "license": m.get("license", {}).get("name") if m.get("license") else "No License",
                         "updated_at": m.get("updated_at"),
                         "open_issues": m.get("open_issues_count"),
