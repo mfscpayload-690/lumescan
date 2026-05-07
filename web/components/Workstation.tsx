@@ -7,8 +7,12 @@ import {
   FileDown, FileCode, FileText, Square, Play, Star, GitFork,
   Clock, Shield, Code, Cpu, Globe, Activity, Timer,
   ChevronDown, ChevronUp, Eye, Package, Unlock, Lock, AlertCircle,
-  Search
+  Search,
+  History as HistoryIcon,
+  RotateCcw,
+  CheckCircle2
 } from 'lucide-react';
+import { useAuditCache, AuditSession } from '@/hooks/useAuditCache';
 
 // Brand Icons (Custom SVGs as per user requirement to avoid lucide-react for brands)
 const GithubIcon = ({ size = 18, className = "" }) => (
@@ -104,6 +108,9 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const [isLogCollapsed, setIsLogCollapsed] = useState(true);
+  const [scanStatus, setScanStatus] = useState<'idle' | 'scanning' | 'completed' | 'partial'>('idle');
+  const { saveToHistory, saveActiveSession, getActiveSession, clearActiveSession } = useAuditCache();
+  const scanIdRef = useRef<string>(Math.random().toString(36).substring(7));
 
   const addLog = (message: string, type: LogEntry['type'] = 'info') => {
     const newLog: LogEntry = {
@@ -146,14 +153,43 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
 
     // If deep linked, auto-trigger scan after boot (only once)
     if (initialRepo && !initialScanTriggered.current) {
-      setTimeout(() => {
-        if (!initialScanTriggered.current) {
-          executeScan(0, initialRepo);
-          initialScanTriggered.current = true;
-        }
-      }, 2000);
+      const cached = getActiveSession(initialRepo);
+      if (cached && cached.findings) {
+        addLog(`Restoring active session for ${initialRepo}...`, 'info');
+        setFindings(cached.findings || []);
+        setLogs(prev => [...prev, ...(cached.logs || [])]);
+        setRepoMetadata(cached.metadata);
+        setTotalFound(cached.totalFiles || 0);
+        setOffset(0);
+        setScanStatus(cached.status || 'completed');
+        initialScanTriggered.current = true;
+      } else {
+        setTimeout(() => {
+          if (!initialScanTriggered.current) {
+            executeScan(0, initialRepo);
+            initialScanTriggered.current = true;
+          }
+        }, 2000);
+      }
     }
-  }, [initialRepo]);
+  }, [initialRepo, getActiveSession]);
+
+  // Persist active session as it changes
+  useEffect(() => {
+    if (isScanning && repoUrl) {
+      saveActiveSession(repoUrl, {
+        id: scanIdRef.current,
+        repo: repoUrl,
+        findings,
+        logs: logs.slice(-50), // Only last 50 logs for perf
+        metadata: repoMetadata,
+        totalFiles: totalFound,
+        status: scanStatus,
+        startedAt: new Date(scanStartTime || Date.now()).toISOString(),
+        elapsedSeconds: elapsedTime
+      });
+    }
+  }, [findings, logs, isScanning, repoUrl, repoMetadata, totalFound, scanStatus, scanStartTime, elapsedTime, saveActiveSession]);
 
   // Progressive Search Logic
   useEffect(() => {
@@ -232,12 +268,17 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
     const signal = abortControllerRef.current.signal;
 
     if (currentOffset === 0) {
-      setFindings([]);
-      setLogs([]);
-      setOffset(0);
-      setTotalFound(0);
+      // Only clear if it's a different repo or we are starting fresh
+      if (targetRepo !== repoUrl || scanStatus === 'completed' || scanStatus === 'idle') {
+        setFindings([]);
+        setLogs([]);
+        setOffset(0);
+        setTotalFound(0);
+        scanIdRef.current = Math.random().toString(36).substring(7);
+      }
     }
 
+    setScanStatus('scanning');
     addLog(`Initiating scan for: ${targetRepo} (Batch: ${currentOffset / 50 + 1})`, 'info');
 
     try {
@@ -350,13 +391,39 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
     } catch (err) {
       if ((err as any).name === 'AbortError') {
         addLog('Security audit terminated. Displaying results found so far.', 'warning');
+        setScanStatus('partial');
+        saveSessionToHistory('partial');
       } else {
         addLog(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`, 'error');
+        setScanStatus('idle');
       }
     } finally {
       setIsScanning(false);
       abortControllerRef.current = null;
+      if (scanStatus === 'scanning') {
+        setScanStatus('completed');
+        addLog('Full security audit complete.', 'success');
+        saveSessionToHistory('completed');
+      }
     }
+  };
+
+  const saveSessionToHistory = (status: 'completed' | 'partial') => {
+    const session: AuditSession = {
+      id: scanIdRef.current,
+      repo: repoUrl,
+      status,
+      findings,
+      logs: logs.slice(-20), // Keep a small log trail
+      metadata: repoMetadata,
+      filesAnalyzed: findings.length,
+      totalFiles: totalFound,
+      startedAt: new Date(scanStartTime || Date.now()).toISOString(),
+      completedAt: new Date().toISOString(),
+      elapsedSeconds: elapsedTime
+    };
+    saveToHistory(session);
+    clearActiveSession(repoUrl);
   };
 
   const handleStopScan = () => {
@@ -440,6 +507,14 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
               <CoffeeIcon size={18} />
               <span className="text-[10px] font-bold uppercase hidden sm:block text-slate-400 group-hover:text-amber-300">Support</span>
             </a>
+            <Link
+              href="/history"
+              className="p-2 bg-slate-800 border border-slate-700/50 rounded-lg text-emerald-400 hover:text-emerald-300 hover:border-emerald-500/50 transition-all flex items-center gap-2 group"
+              title="Audit History"
+            >
+              <HistoryIcon size={18} />
+              <span className="text-[10px] font-bold uppercase hidden sm:block text-slate-400 group-hover:text-emerald-300">History</span>
+            </Link>
           </div>
         </header>
 
@@ -498,9 +573,13 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
                   <button
                     type="submit"
                     disabled={!repoUrl.trim()}
-                    className="w-full py-3 bg-emerald-500 text-slate-950 font-bold rounded hover:bg-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+                    className="w-full py-3 bg-emerald-500 text-slate-950 font-bold rounded hover:bg-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(16,185,129,0.2)]"
                   >
-                    <Play size={16} fill="currentColor" /> INITIALIZE AUDIT
+                    {scanStatus === 'partial' || scanStatus === 'completed' ? (
+                      <><RotateCcw size={16} /> RE-INITIALIZE AUDIT</>
+                    ) : (
+                      <><Play size={16} fill="currentColor" /> INITIALIZE AUDIT</>
+                    )}
                   </button>
                 )}
               </form>
@@ -667,9 +746,15 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
                 {/* Integrated Status & Timer */}
                 <div className="hidden sm:flex items-center gap-4 pl-6 border-l border-slate-800">
                   <div className="flex items-center gap-2">
-                    <div className={`w-1.5 h-1.5 rounded-full ${isScanning ? 'bg-blue-500 animate-pulse' : 'bg-emerald-500'} shadow-[0_0_8px_rgba(16,185,129,0.3)]`} />
+                    <div className={`w-1.5 h-1.5 rounded-full 
+                      ${isScanning ? 'bg-blue-500 animate-pulse' : 
+                        scanStatus === 'completed' ? 'bg-emerald-500' :
+                        scanStatus === 'partial' ? 'bg-amber-500' : 'bg-slate-700'} 
+                      shadow-[0_0_8px_rgba(16,185,129,0.3)]`} />
                     <span className="text-[10px] text-slate-500 font-bold tracking-widest uppercase">
-                      {isScanning ? 'SCAN ACTIVE' : 'ENGINE READY'}
+                      {isScanning ? 'SCAN ACTIVE' : 
+                       scanStatus === 'completed' ? 'AUDIT COMPLETED' :
+                       scanStatus === 'partial' ? 'AUDIT STOPPED (PARTIAL)' : 'ENGINE READY'}
                     </span>
                   </div>
                   <div className="flex items-center gap-2 bg-slate-950/50 px-2 py-0.5 rounded border border-slate-800">

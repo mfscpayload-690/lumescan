@@ -2,7 +2,9 @@ from groq import Groq
 import httpx
 import json
 import asyncio
+import hashlib
 from app.core.config import settings
+from app.core.cache import analysis_cache
 
 class AnalyzeService:
     def __init__(self):
@@ -104,19 +106,19 @@ class AnalyzeService:
     async def analyze_file(self, owner: str, repo: str, path: str, category: str = "General") -> dict:
         """
         Performs a security-focused analysis of a repository file and returns the parsed analysis result.
-        
-        Parameters:
-            owner (str): GitHub repository owner.
-            repo (str): GitHub repository name.
-            path (str): Path to the file within the repository.
-            category (str): Analysis category to tailor the audit (e.g., "Logic", "Config", "Workflow", "Secrets", or "General").
-        
-        Returns:
-            dict: On success, a parsed JSON object containing at least `file` and a `findings` array with analysis entries; on failure, a dictionary `{"error": "<message>", "file": "<path>"}` describing the problem.
+        Uses in-memory caching to avoid redundant Groq API calls for unchanged files.
         """
         content = await self.get_file_content(owner, repo, path)
         if not content:
             return {"error": f"Could not fetch content for {path}", "file": path}
+
+        # Cache key based on path and content hash to prevent stale results
+        content_hash = hashlib.md5(content.encode()).hexdigest()
+        cache_key = f"{owner}/{repo}/{path}:{content_hash}"
+        
+        cached_result = analysis_cache.get(cache_key)
+        if cached_result:
+            return cached_result
 
         prompt = self._get_prompt(owner, repo, path, content, category)
 
@@ -138,6 +140,9 @@ class AnalyzeService:
             # Ensure AI doesn't override critical metadata (Hallucination Shield)
             result["file"] = path
             result["category"] = category
+            
+            # Save to cache
+            analysis_cache.set(cache_key, result)
             return result
         except Exception as e:
             return {"error": f"Groq Analysis failed: {str(e)}", "file": path}

@@ -6,6 +6,8 @@ import httpx
 import traceback
 from app.services.analyze import analyze_service
 from app.core.config import settings
+from app.core.cache import repo_tree_cache
+from fastapi.responses import JSONResponse
 
 app = FastAPI(title="LumeScan API", version="1.0.0", redirect_slashes=False)
 
@@ -62,7 +64,7 @@ async def search_repos(q: str):
                 return {"items": []}
             
             data = response.json()
-            return {
+            results = {
                 "items": [
                     {
                         "full_name": repo["full_name"],
@@ -71,6 +73,10 @@ async def search_repos(q: str):
                     } for repo in data.get("items", [])
                 ]
             }
+            return JSONResponse(
+                content=results,
+                headers={"Cache-Control": "public, max-age=120, stale-while-revalidate=60"}
+            )
     except Exception:
         return {"items": []}
 
@@ -96,6 +102,14 @@ async def init_scan(request: ScanRequest):
     else:
         raise HTTPException(status_code=400, detail="Invalid GitHub repository format.")
     
+    cache_key = f"{owner}/{repo}:{request.offset}"
+    cached_data = repo_tree_cache.get(cache_key)
+    if cached_data:
+        return JSONResponse(
+            content=cached_data,
+            headers={"Cache-Control": "public, max-age=300", "X-Cache": "HIT"}
+        )
+
     try:
         # Increase timeout for large repositories or slow API responses
         timeout = httpx.Timeout(20.0, connect=5.0)
@@ -171,7 +185,7 @@ async def init_scan(request: ScanRequest):
             total_found = len(files)
             files = files[request.offset : request.offset + 50]
             
-            return {
+            result = {
                 "owner": owner, 
                 "repo": repo, 
                 "files_found": files,
@@ -180,6 +194,14 @@ async def init_scan(request: ScanRequest):
                 "metadata": metadata,
                 "message": f"Showing files {request.offset + 1}-{request.offset + len(files)} of {total_found}." if total_found > 50 else None
             }
+            
+            # Cache the result
+            repo_tree_cache.set(cache_key, result)
+            
+            return JSONResponse(
+                content=result,
+                headers={"Cache-Control": "public, max-age=300", "X-Cache": "MISS"}
+            )
             
     except HTTPException:
         raise
