@@ -141,7 +141,7 @@ export const Hero: React.FC = () => {
       </div>
 
       {/* Scroll Indicator */}
-      <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-3 reveal reveal-up reveal-delay-5 opacity-40 hover:opacity-100 transition-opacity cursor-pointer"
+      <div className="absolute bottom-6 sm:bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-3 opacity-40 hover:opacity-100 transition-opacity cursor-pointer z-20"
            onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}>
         <div className="w-[1px] h-12 bg-gradient-to-b from-transparent via-emerald-500/50 to-transparent" />
         <div className="flex flex-col items-center gap-1">
