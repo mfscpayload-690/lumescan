@@ -11,8 +11,8 @@ const features = [
     isComingSoon: false
   },
   {
-    title: "AI Remediation",
-    description: "Receive instant, context-aware code patches and implementation plans to fix vulnerabilities in seconds.",
+    title: "AI Analysis Engine",
+    description: "Powered by Llama-3.3-70b-Groq for ultra-fast, context-aware code analysis and instant remediation plans.",
     icon: Zap,
     color: "text-blue-500",
     bg: "bg-blue-500/10",
@@ -60,11 +60,11 @@ export const Features: React.FC = () => {
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/5 border border-emerald-500/10 text-emerald-500/80 text-[10px] font-bold uppercase tracking-[0.2em] mb-2 reveal reveal-up reveal-delay-1">
             Powerful Scanning Suite
           </div>
-          <h2 className="text-4xl md:text-5xl lg:text-7xl font-extrabold text-white tracking-tight leading-[1.05] reveal reveal-up reveal-delay-2">
+          <h2 className="text-3xl md:text-4xl lg:text-5xl font-extrabold text-white tracking-tight leading-[1.1] reveal reveal-up reveal-delay-2">
             Comprehensive Protection <br className="hidden sm:block" />
             <span className="text-gradient brightness-110">for Modern Development</span>
           </h2>
-          <p className="text-slate-400 max-w-3xl mx-auto text-base md:text-xl leading-relaxed reveal reveal-up reveal-delay-3">
+          <p className="text-slate-400 max-w-3xl mx-auto text-sm md:text-lg leading-relaxed reveal reveal-up reveal-delay-3">
             LumeScan combines traditional static analysis with modern AI to provide a <span className="text-white font-medium">security suite</span> that works at the speed of your team.
           </p>
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] bg-emerald-500/5 blur-[120px] -z-10 pointer-events-none" />
