@@ -1,0 +1,77 @@
+name: LumeScan Master Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  # --- 1. BACKEND QUALITY GATE ---
+  backend-ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff mypy pytest
+          pip install -r server/requirements.txt
+      - name: Lint (Ruff)
+        run: ruff check server/
+      - name: Type Check (Mypy)
+        run: mypy server/ --ignore-missing-imports --check-untyped-defs
+
+  # --- 2. FRONTEND QUALITY GATE ---
+  frontend-ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'web/package-lock.json'
+      - name: Install Dependencies
+        working-directory: ./web
+        run: npm ci
+      - name: Lint
+        working-directory: ./web
+        run: npm run lint
+      - name: Type Check
+        working-directory: ./web
+        run: npx tsc --noEmit
+
+  # --- 3. DEPLOYMENT (ONLY ON SUCCESSFUL BACKEND CI) ---
+  deploy-backend:
+    name: Sync to Hugging Face
+    needs: [backend-ci]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: true
+      - name: Push to Hugging Face Hub
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          mkdir deploy_dir
+          cp -r server deploy_dir/
+          cp Dockerfile deploy_dir/
+          cp README.md deploy_dir/
+          cd deploy_dir
+          git init -b main
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add .
+          git commit -m "deploy: fresh backend build from pipeline"
+          git push -f https://mfscpayload-690:$HF_TOKEN@huggingface.co/spaces/mfscpayload-690/lumescan-api main

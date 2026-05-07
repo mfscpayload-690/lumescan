@@ -1,0 +1,17 @@
+# Ruff configuration (Fastest Python Linter)
+line-length = 100
+target-version = "py311"
+
+[lint]
+select = [
+    "E",   # pycodestyle errors
+    "F",   # pyflakes
+    "I",   # isort (import sorting)
+    "B",   # flake8-bugbear (potential bugs)
+    "UP",  # pyupgrade (modern python syntax)
+]
+ignore = []
+
+[format]
+quote-style = "double"
+indent-style = "space"
