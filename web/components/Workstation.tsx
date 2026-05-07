@@ -14,10 +14,16 @@ import {
   GitFork,
   Clock,
   ExternalLink,
-  Github,
   X,
   Code2,
   Terminal,
+  Play,
+  Square,
+  Shield,
+  Package,
+  ChevronDown,
+  ChevronUp,
+  Copy,
 } from 'lucide-react';
 
 interface LogEntry {
@@ -89,7 +95,7 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
   const [scanStartTime, setScanStartTime] = useState<number | null>(null);
   const [elapsedTime, setElapsedTime] = useState(0);
   const logEndRef = useRef<HTMLDivElement>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLFormElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const [isLogCollapsed, setIsLogCollapsed] = useState(true);
 
@@ -188,9 +194,9 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
                 
                 if (result.findings && result.findings.length > 0) {
                   const newFindings = result.findings.map((finding: Finding) => ({
+                    ...finding,
                     file: result.file,
-                    category: result.category,
-                    ...finding
+                    category: result.category
                   }));
 
                   const severityWeight: Record<string, number> = {
