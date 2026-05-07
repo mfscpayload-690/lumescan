@@ -210,37 +210,30 @@ async def init_scan(request: ScanRequest):
         raise HTTPException(status_code=500, detail="An error occurred while initializing the scan.")
 
 @app.post("/api/v1/scan/analyze")
-async def analyze_repo(request: AnalyzeRequest):
+async def analyze_repo(request: Request, analyze_req: AnalyzeRequest):
     """
     Stream per-file analysis results for the given repository files.
     
     Parameters:
-        request (AnalyzeRequest): Request containing `owner`, `repo`, and `files`. Each item in `files` is expected to include at least `path` and `category`.
-    
-    Returns:
-        StreamingResponse: A response that yields newline-delimited JSON objects. Each yielded line is either an analysis result for a file or an error object with the shape `{"file": <path>, "error": <message>}`.
+        request (Request): The incoming request object, used to detect client disconnection.
+        analyze_req (AnalyzeRequest): Request containing `owner`, `repo`, and `files`.
     """
     from fastapi.responses import StreamingResponse
     import asyncio
     import json
     
     async def generate_results():
-        """
-        Yield per-file analysis results and per-file errors as newline-terminated JSON strings.
-        
-        Each iteration waits 1.5 seconds, invokes the analysis service for the current file, and yields the analysis result serialized as JSON with a trailing newline. If analyzing a file raises an exception, yields a JSON object containing the file path and the error message (also newline-terminated).
-        
-        Returns:
-            An async generator that yields strings. Each yielded string is either:
-              - the JSON-serialized analysis result followed by "\n", or
-              - the JSON-serialized error object {"file": <path>, "error": <message>} followed by "\n".
-        """
-        for file_info in request.files:
+        for file_info in analyze_req.files:
+            # Check for client disconnection
+            if await request.is_disconnected():
+                print("Client disconnected, stopping analysis.")
+                break
+
             try:
                 # 1.5s safety delay between files
                 await asyncio.sleep(1.5)
                 result = await analyze_service.analyze_file(
-                    request.owner, request.repo, file_info.path, file_info.category
+                    analyze_req.owner, analyze_req.repo, file_info.path, file_info.category
                 )
                 yield f"{json.dumps(result)}\n"
             except Exception as e:

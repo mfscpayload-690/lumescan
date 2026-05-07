@@ -281,6 +281,8 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
     setScanStatus('scanning');
     addLog(`Initiating scan for: ${targetRepo} (Batch: ${currentOffset / 50 + 1})`, 'info');
 
+    let scanCompletedSuccessfully = false;
+
     try {
       addLog('Validating repository structure...', 'info');
 
@@ -385,9 +387,8 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
             }
           }
         }
+        scanCompletedSuccessfully = true;
       }
-
-      addLog('Full security audit complete.', 'success');
     } catch (err) {
       if ((err as any).name === 'AbortError') {
         addLog('Security audit terminated. Displaying results found so far.', 'warning');
@@ -400,7 +401,7 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
     } finally {
       setIsScanning(false);
       abortControllerRef.current = null;
-      if (scanStatus === 'scanning') {
+      if (scanCompletedSuccessfully) {
         setScanStatus('completed');
         addLog('Full security audit complete.', 'success');
         saveSessionToHistory('completed');
