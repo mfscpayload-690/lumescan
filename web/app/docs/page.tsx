@@ -3,9 +3,9 @@
 import React from 'react';
 import Link from 'next/link';
 import {
-  Book, Code, Cpu, Shield, Zap, Globe,
-  Terminal, Server, ArrowRight,
-  ShieldCheck, AlertTriangle, FileCode, Search
+  Book, Code, Cpu, Shield, Zap,
+  Terminal, ArrowRight,
+  ShieldCheck, AlertTriangle, Search
 } from 'lucide-react';
 
 const Github = ({ size = 24, ...props }: { size?: number } & React.SVGProps<SVGSVGElement>) => (

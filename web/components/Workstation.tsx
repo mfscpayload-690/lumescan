@@ -3,10 +3,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import {
-  Terminal, ShieldCheck, Zap, AlertTriangle, Copy, Download,
-  FileDown, FileCode, FileText, Square, Play, Star, GitFork,
-  Clock, Shield, Code, Cpu, Globe, Activity, Timer, Coffee,
-  ChevronDown, ChevronUp, Eye, Package, Unlock, Lock, AlertCircle
+  Terminal, ShieldCheck, Zap, AlertTriangle, Copy,
+  FileCode, FileText, Square, Play, Star, GitFork,
+  Clock, Shield, Code,
+  ChevronDown, ChevronUp, Package, AlertCircle, Coffee
 } from 'lucide-react';
 
 interface LogEntry {
@@ -106,35 +106,6 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
   const hasBooted = useRef(false);
   const initialScanTriggered = useRef(false);
 
-  // System Boot Sequence
-  useEffect(() => {
-    if (!hasBooted.current) {
-      const bootSequence = [
-        { msg: 'LumeScan Professional v1.0.4 initializing...', type: 'info' as const, delay: 100 },
-        { msg: 'Establishing secure link to analysis cluster...', type: 'info' as const, delay: 600 },
-        { msg: 'Services Online: Security_Core, Dependency_Sentry, Secret_Vault.', type: 'success' as const, delay: 1100 },
-        { msg: 'SESSION AUTHORIZED. System ready.', type: 'success' as const, delay: 1600 }
-      ];
-
-      bootSequence.forEach((item) => {
-        setTimeout(() => {
-          addLog(item.msg, item.msg.includes('AUTHORIZED') || item.msg.includes('Online') ? 'success' : 'info');
-        }, item.delay);
-      });
-
-      hasBooted.current = true;
-    }
-
-    // If deep linked, auto-trigger scan after boot (only once)
-    if (initialRepo && !initialScanTriggered.current) {
-      setTimeout(() => {
-        if (!initialScanTriggered.current) {
-          executeScan(0, initialRepo);
-          initialScanTriggered.current = true;
-        }
-      }, 2000);
-    }
-  }, [initialRepo]);
 
   // Progressive Search Logic
   useEffect(() => {
@@ -339,6 +310,36 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
       abortControllerRef.current = null;
     }
   };
+
+  // System Boot Sequence & Auto-Scan
+  useEffect(() => {
+    if (!hasBooted.current) {
+      const bootSequence = [
+        { msg: 'LumeScan Professional v1.0.4 initializing...', type: 'info' as const, delay: 100 },
+        { msg: 'Establishing secure link to analysis cluster...', type: 'info' as const, delay: 600 },
+        { msg: 'Services Online: Security_Core, Dependency_Sentry, Secret_Vault.', type: 'success' as const, delay: 1100 },
+        { msg: 'SESSION AUTHORIZED. System ready.', type: 'success' as const, delay: 1600 }
+      ];
+
+      bootSequence.forEach((item) => {
+        setTimeout(() => {
+          addLog(item.msg, item.msg.includes('AUTHORIZED') || item.msg.includes('Online') ? 'success' : 'info');
+        }, item.delay);
+      });
+
+      hasBooted.current = true;
+    }
+
+    // If deep linked, auto-trigger scan after boot (only once)
+    if (initialRepo && !initialScanTriggered.current) {
+      setTimeout(() => {
+        if (!initialScanTriggered.current) {
+          executeScan(0, initialRepo);
+          initialScanTriggered.current = true;
+        }
+      }, 2000);
+    }
+  }, [initialRepo]);
 
   const handleStopScan = () => {
     if (abortControllerRef.current) {

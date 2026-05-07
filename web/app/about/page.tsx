@@ -3,7 +3,7 @@
 import React from 'react';
 import { Navbar } from '@/landing/Navbar';
 import { Footer } from '@/landing/Footer';
-import { Shield, ExternalLink, Code, Server, Cpu, Globe, Terminal, Mail, Users, Heart } from 'lucide-react';
+import { Shield, ExternalLink, Code, Cpu, Terminal, Mail, Users, Heart } from 'lucide-react';
 import { useReveal } from '@/hooks/useReveal';
 import Link from 'next/link';
 
@@ -147,8 +147,8 @@ export default function AboutPage() {
             <div className="max-w-3xl space-y-6 reveal reveal-up">
               <h2 className="text-3xl font-bold text-white">The Vision Behind LumeScan</h2>
               <p className="text-lg text-slate-400 leading-relaxed">
-                Security shouldn't be a bottleneck—it should be a reflex. LumeScan was born out of the need for an audit engine that
-                doesn't just find vulnerabilities, but understands them. By leveraging massive inference capabilities, we turn raw
+                Security shouldn&apos;t be a bottleneck—it should be a reflex. LumeScan was born out of the need for an audit engine that
+                doesn&apos;t just find vulnerabilities, but understands them. By leveraging massive inference capabilities, we turn raw
                 static analysis into actionable remediation plans.
               </p>
             </div>
