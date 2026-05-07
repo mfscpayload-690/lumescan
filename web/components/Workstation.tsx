@@ -507,11 +507,11 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
             {repoMetadata && (
               <div className="p-6 bg-slate-900/40 border border-slate-800 rounded-xl backdrop-blur-md relative z-10 animate-in fade-in slide-in-from-left-4 duration-500 shadow-xl">
                 <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-base sm:text-xl font-bold text-white flex items-center gap-2.5 truncate pr-4">
-                    <Zap size={20} className="text-blue-400 fill-blue-400/20 shrink-0" /> 
-                    {repoMetadata.full_name || (repoUrl && repoUrl.includes('/') ? repoUrl.split('/').filter(Boolean).slice(-2).join('/') : repoUrl) || 'REPOSITORY PULSE'}
+                  <h2 className="text-base sm:text-lg font-medium text-white flex items-center gap-2.5 truncate pr-4 font-sans">
+                    <Zap size={18} className="text-blue-400 fill-blue-400/20 shrink-0" /> 
+                    {repoMetadata.full_name || (repoUrl && repoUrl.includes('/') ? repoUrl.split('/').filter(Boolean).slice(-2).join('/') : repoUrl) || 'CURRENT REPOSITORY'}
                   </h2>
-                  <div className="px-2 py-1 bg-slate-950 border border-slate-800 rounded text-[10px] font-mono text-slate-500 uppercase">
+                  <div className="px-2 py-1 bg-slate-950 border border-slate-800 rounded text-[10px] font-mono text-slate-500 uppercase shrink-0">
                     {repoMetadata.visibility || 'Public'}
                   </div>
                 </div>
@@ -555,9 +555,9 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
 
                   {/* Technical Meta List */}
                   <div className="space-y-3 pt-2">
-                    <div className="flex flex-wrap items-center gap-3 p-4 bg-slate-950/40 rounded-xl border border-slate-800/50 hover:bg-slate-950/60 transition-colors">
+                    <div className="flex flex-wrap items-center gap-2.5 p-3.5 bg-slate-950/40 rounded-xl border border-slate-800/50 hover:bg-slate-950/60 transition-colors">
                       {repoMetadata.languages && repoMetadata.languages.length > 0 ? (
-                        repoMetadata.languages.slice(0, 10).map((lang: string) => {
+                        repoMetadata.languages.slice(0, 12).map((lang: string) => {
                           const mapping: Record<string, string> = {
                             'JavaScript': 'js', 'TypeScript': 'ts', 'Python': 'py',
                             'HTML': 'html', 'CSS': 'css', 'Rust': 'rust', 'Go': 'go',
@@ -571,14 +571,14 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
                               src={`https://skillicons.dev/icons?i=${iconId}`}
                               alt={lang}
                               title={lang}
-                              className="w-6 h-6 sm:w-8 sm:h-8 hover:scale-110 transition-transform cursor-help"
+                              className="w-7 h-7 sm:w-8 sm:h-8 hover:scale-110 transition-transform cursor-help"
                             />
                           );
                         })
                       ) : (
-                        <div className="flex items-center gap-2">
-                          <Code size={16} className="text-slate-500" />
-                          <span className="text-xs font-mono text-slate-400">Technology stack identified during scan</span>
+                        <div className="flex items-center gap-2 py-1">
+                          <Code size={14} className="text-slate-600" />
+                          <span className="text-[10px] font-bold uppercase tracking-tight text-slate-500">Awaiting Technology Scan</span>
                         </div>
                       )}
                     </div>

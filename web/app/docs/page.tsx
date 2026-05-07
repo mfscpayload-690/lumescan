@@ -8,25 +8,30 @@ import {
   Terminal, ArrowRight,
   ShieldCheck, AlertTriangle, Search
 } from 'lucide-react';
-import { useReveal } from '@/hooks/useReveal';
 
 const DocsPage = () => {
-  useReveal();
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-200 selection:bg-emerald-500/30">
       <Navbar />
 
-      {/* Background Decor */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-emerald-500/5 blur-[120px] rounded-full" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-500/5 blur-[120px] rounded-full" />
-      </div>
+      {/* Background Decor - Simplified */}
+      <div className="fixed inset-0 bg-slate-950 -z-10" />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 pb-24">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 md:pt-32 pb-24">
         <div className="grid lg:grid-cols-4 gap-8 lg:gap-12">
-          {/* Sidebar Navigation - Hidden on mobile, sticky on desktop */}
-          <aside className="hidden lg:block space-y-8 sticky top-32 h-fit reveal reveal-left">
+          {/* Mobile Navigation Dropdown - Simplified */}
+          <div className="lg:hidden sticky top-20 z-20 mb-8 p-3 bg-slate-900 border border-slate-800 rounded-xl shadow-lg">
+            <div className="flex items-center gap-3 overflow-x-auto no-scrollbar">
+              <a href="#introduction" className="whitespace-nowrap px-3 py-1.5 text-[10px] font-bold uppercase tracking-tight text-emerald-400 border border-emerald-500/20 rounded-lg">Intro</a>
+              <a href="#architecture" className="whitespace-nowrap px-3 py-1.5 text-[10px] font-bold uppercase tracking-tight text-slate-400 hover:text-white">Architecture</a>
+              <a href="#api" className="whitespace-nowrap px-3 py-1.5 text-[10px] font-bold uppercase tracking-tight text-slate-400 hover:text-white">API Reference</a>
+              <a href="#deep-linking" className="whitespace-nowrap px-3 py-1.5 text-[10px] font-bold uppercase tracking-tight text-slate-400 hover:text-white">Deep Linking</a>
+            </div>
+          </div>
+
+          {/* Sidebar Navigation */}
+          <aside className="hidden lg:block space-y-8 sticky top-32 h-fit">
             <div className="space-y-4">
               <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-2">Getting Started</h3>
               <ul className="space-y-1">
@@ -53,15 +58,15 @@ const DocsPage = () => {
           {/* Main Content Area */}
           <div className="lg:col-span-3 space-y-24 md:space-y-32">
             {/* Introduction Section */}
-            <section id="introduction" className="space-y-8 reveal reveal-up">
+            <section id="introduction" className="space-y-8">
               <div className="space-y-4">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-[10px] font-bold uppercase tracking-widest">
-                  Documentation
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-slate-900 border border-slate-800 text-slate-400 text-[10px] font-bold uppercase tracking-widest">
+                  Documentation v1.0
                 </div>
-                <h1 className="text-4xl md:text-5xl lg:text-6xl font-black text-white tracking-tight leading-[1.1]">
-                  Securing the <span className="text-gradient brightness-110">Future</span>
+                <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white tracking-tight">
+                  Intelligent <span className="text-emerald-500">Analysis</span>
                 </h1>
-                <p className="text-lg md:text-xl text-slate-400 leading-relaxed max-w-3xl">
+                <p className="text-lg text-slate-400 leading-relaxed max-w-3xl">
                   LumeScan is a professional-grade security auditing workstation designed to identify vulnerabilities in GitHub repositories using advanced AI analysis. 
                   Streamline your audit process with automated classification and actionable remediation plans.
                 </p>
@@ -82,37 +87,37 @@ const DocsPage = () => {
             </section>
 
             {/* System Architecture Section */}
-            <section id="architecture" className="space-y-8 reveal reveal-up">
+            <section id="architecture" className="space-y-8">
               <div className="space-y-4">
-                <h2 className="text-3xl font-bold text-white tracking-tight">Intelligent Discovery</h2>
-                <p className="text-slate-400 leading-relaxed max-w-3xl">
-                  The LumeScan platform is split into a high-density Next.js workstation and a high-performance FastAPI backend to ensure maximum performance and security.
+                <h2 className="text-2xl font-bold text-white">System Architecture</h2>
+                <p className="text-sm text-slate-400 leading-relaxed max-w-3xl">
+                  A high-level overview of the LumeScan data flow and component integration.
                 </p>
               </div>
 
-              <div className="p-6 sm:p-10 bg-slate-950 border border-slate-900 rounded-3xl overflow-hidden relative group">
-                <div className="flex flex-col lg:flex-row items-center justify-between gap-8 relative z-10">
-                  <div className="w-full lg:w-1/3 p-6 bg-emerald-500/5 border border-emerald-500/20 rounded-2xl text-center group-hover:border-emerald-500/40 transition-all">
-                    <div className="text-emerald-500 font-bold mb-2">Workstation</div>
-                    <div className="text-[10px] text-slate-500 font-mono">Next.js 15+ App</div>
+              <div className="p-6 sm:p-8 bg-slate-900/50 border border-slate-800 rounded-2xl relative overflow-hidden">
+                <div className="flex flex-col lg:flex-row items-center justify-between gap-6 relative z-10">
+                  <div className="w-full lg:w-1/3 p-4 bg-slate-950 border border-slate-800 rounded-xl text-center">
+                    <div className="text-slate-200 font-bold mb-1 text-sm">Workstation</div>
+                    <div className="text-[9px] text-slate-500 font-mono">Next.js Frontend</div>
                   </div>
                   
                   <div className="flex lg:flex-1 items-center justify-center">
-                    <ArrowRight className="text-slate-800 lg:rotate-0 rotate-90" size={24} />
+                    <ArrowRight className="text-slate-700 lg:rotate-0 rotate-90" size={16} />
                   </div>
 
-                  <div className="w-full lg:w-1/3 p-6 bg-blue-500/5 border border-blue-500/20 rounded-2xl text-center group-hover:border-blue-500/40 transition-all">
-                    <div className="text-blue-500 font-bold mb-2">LumeScan API</div>
-                    <div className="text-[10px] text-slate-500 font-mono">FastAPI / Python</div>
+                  <div className="w-full lg:w-1/3 p-4 bg-slate-950 border border-slate-800 rounded-xl text-center">
+                    <div className="text-slate-200 font-bold mb-1 text-sm">LumeScan API</div>
+                    <div className="text-[9px] text-slate-500 font-mono">FastAPI Backend</div>
                   </div>
 
                   <div className="flex lg:flex-1 items-center justify-center">
-                    <ArrowRight className="text-slate-800 lg:rotate-0 rotate-90" size={24} />
+                    <ArrowRight className="text-slate-700 lg:rotate-0 rotate-90" size={16} />
                   </div>
 
-                  <div className="w-full lg:w-1/3 p-6 bg-amber-500/5 border border-amber-500/20 rounded-2xl text-center group-hover:border-amber-500/40 transition-all">
-                    <div className="text-amber-500 font-bold mb-2">AI Core</div>
-                    <div className="text-[10px] text-slate-500 font-mono">Groq / Llama-3.3</div>
+                  <div className="w-full lg:w-1/3 p-4 bg-slate-950 border border-slate-800 rounded-xl text-center">
+                    <div className="text-slate-200 font-bold mb-1 text-sm">AI Engine</div>
+                    <div className="text-[9px] text-slate-500 font-mono">Groq / Llama Core</div>
                   </div>
                 </div>
 
@@ -139,7 +144,7 @@ const DocsPage = () => {
             </section>
 
             {/* API Reference Section */}
-            <section id="api" className="space-y-12 reveal reveal-up">
+            <section id="api" className="space-y-8">
               <div className="space-y-6">
                 <h2 className="text-3xl font-bold text-white tracking-tight">Seamless Flow</h2>
                 <div id="auth" className="p-6 bg-slate-900/20 border border-slate-800 rounded-2xl space-y-4">
@@ -205,7 +210,7 @@ const DocsPage = () => {
             </section>
 
             {/* Deep Linking Section */}
-            <section id="deep-linking" className="space-y-8 reveal reveal-up">
+            <section id="deep-linking" className="space-y-8">
               <div className="space-y-4">
                 <h2 className="text-3xl font-bold text-white tracking-tight">Actionable Intel</h2>
                 <p className="text-slate-400 leading-relaxed max-w-3xl">
