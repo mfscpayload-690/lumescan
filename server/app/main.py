@@ -97,34 +97,46 @@ async def init_scan(request: ScanRequest):
         raise HTTPException(status_code=400, detail="Invalid GitHub repository format.")
     
     try:
-        async with httpx.AsyncClient(follow_redirects=True) as client:
+        # Increase timeout for large repositories or slow API responses
+        timeout = httpx.Timeout(20.0, connect=5.0)
+        async with httpx.AsyncClient(follow_redirects=True, timeout=timeout) as client:
             tree_url = f"https://api.github.com/repos/{owner}/{repo}/git/trees/main?recursive=1"
-            response = await client.get(tree_url)
-            
-            if response.status_code != 200:
-                tree_url = f"https://api.github.com/repos/{owner}/{repo}/git/trees/master?recursive=1"
+            try:
                 response = await client.get(tree_url)
+                if response.status_code != 200:
+                    tree_url = f"https://api.github.com/repos/{owner}/{repo}/git/trees/master?recursive=1"
+                    response = await client.get(tree_url)
+            except httpx.TimeoutException:
+                raise HTTPException(status_code=504, detail="GitHub API timed out while fetching repository tree. The repo might be too large.")
             
             if response.status_code != 200:
                 raise HTTPException(status_code=response.status_code, detail="Failed to fetch repository tree")
             
             tree_data = response.json()
             
-            # Fetch Repo Metadata for context
-            repo_meta_url = f"https://api.github.com/repos/{owner}/{repo}"
-            meta_res = await client.get(repo_meta_url)
+            # Fetch Repo Metadata for context - wrap in try to make it non-blocking if it fails
             metadata = {}
-            if meta_res.status_code == 200:
-                m = meta_res.json()
-                metadata = {
-                    "stars": m.get("stargazers_count"),
-                    "forks": m.get("forks_count"),
-                    "language": m.get("language"),
-                    "license": m.get("license", {}).get("name") if m.get("license") else "No License",
-                    "updated_at": m.get("updated_at"),
-                    "open_issues": m.get("open_issues_count"),
-                    "description": m.get("description")
-                }
+            try:
+                repo_meta_url = f"https://api.github.com/repos/{owner}/{repo}"
+                meta_res = await client.get(repo_meta_url)
+                if meta_res.status_code == 200:
+                    m = meta_res.json()
+                    metadata = {
+                        "stars": m.get("stargazers_count"),
+                        "forks": m.get("forks_count"),
+                        "language": m.get("language"),
+                        "license": m.get("license", {}).get("name") if m.get("license") else "No License",
+                        "updated_at": m.get("updated_at"),
+                        "open_issues": m.get("open_issues_count"),
+                        "description": m.get("description"),
+                        "watchers": m.get("subscribers_count"),
+                        "visibility": m.get("visibility"),
+                        "size": m.get("size")
+                    }
+            except Exception as e:
+                # Log error but don't fail the whole scan for metadata
+                print(f"Warning: Failed to fetch metadata: {str(e)}")
+                metadata = {"error": "Metadata timeout"}
 
             files = []
             for item in tree_data.get("tree", []):
