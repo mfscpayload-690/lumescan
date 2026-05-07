@@ -3,7 +3,7 @@
 import React from 'react';
 import { Navbar } from '@/landing/Navbar';
 import { Footer } from '@/landing/Footer';
-import { Shield, ExternalLink, Code, Cpu, Terminal, Mail, Users, Heart } from 'lucide-react';
+import { Shield, ExternalLink, Code, Server, Cpu, Terminal, Mail, Users, Heart } from 'lucide-react';
 import { useReveal } from '@/hooks/useReveal';
 import Link from 'next/link';
 

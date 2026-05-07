@@ -5,7 +5,7 @@ import Link from 'next/link';
 import {
   Terminal, ShieldCheck, Zap, AlertTriangle, Copy,
   FileCode, FileText, Square, Play, Star, GitFork,
-  Clock, Shield, Code,
+  Clock, Shield, Code, FileDown, Timer, Eye,
   ChevronDown, ChevronUp, Package, AlertCircle, Coffee
 } from 'lucide-react';
 
