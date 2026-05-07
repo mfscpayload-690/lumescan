@@ -47,7 +47,6 @@ export const Navbar: React.FC = () => {
                 Docs
                 <span className="px-1 py-0.5 bg-emerald-500/10 text-[8px] rounded uppercase">v1</span>
               </Link>
-              <Link href="/history" className="text-sm font-medium text-slate-400 hover:text-white transition-colors">History</Link>
             </div>
 
             <div className="flex items-center gap-1.5 sm:gap-3 mr-7 sm:mr-0">
