@@ -16,6 +16,28 @@ interface LogEntry {
   timestamp: string;
 }
 
+const getLanguageColor = (lang: string) => {
+  const colors: Record<string, string> = {
+    'JavaScript': '#f1e05a',
+    'TypeScript': '#3178c6',
+    'Python': '#3572A5',
+    'HTML': '#e34c26',
+    'CSS': '#563d7c',
+    'Rust': '#dea584',
+    'Go': '#00ADD8',
+    'C++': '#f34b7d',
+    'Java': '#b07219',
+    'PHP': '#4F5D95',
+    'Ruby': '#701516',
+    'Shell': '#89e051',
+    'Vue': '#41b883',
+    'React': '#61dafb',
+    'C': '#555555',
+    'C#': '#178600',
+  };
+  return colors[lang] || '#8b949e';
+};
+
 const Github = ({ size = 24, ...props }: { size?: number } & React.SVGProps<SVGSVGElement>) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -482,11 +504,12 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
               </div>
             )}
 
-            {repoMetadata ?
+            {repoMetadata && (
               <div className="p-6 bg-slate-900/40 border border-slate-800 rounded-xl backdrop-blur-md relative z-10 animate-in fade-in slide-in-from-left-4 duration-500 shadow-xl">
                 <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-sm font-bold text-blue-400 uppercase tracking-[0.2em] flex items-center gap-2">
-                    <Zap size={16} className="text-blue-400 fill-blue-400/20" /> REPOSITORY PULSE
+                  <h2 className="text-base sm:text-xl font-bold text-white flex items-center gap-2.5 truncate pr-4">
+                    <Zap size={20} className="text-blue-400 fill-blue-400/20 shrink-0" /> 
+                    {repoMetadata.full_name || (repoUrl && repoUrl.includes('/') ? repoUrl.split('/').filter(Boolean).slice(-2).join('/') : repoUrl) || 'REPOSITORY PULSE'}
                   </h2>
                   <div className="px-2 py-1 bg-slate-950 border border-slate-800 rounded text-[10px] font-mono text-slate-500 uppercase">
                     {repoMetadata.visibility || 'Public'}
@@ -532,14 +555,32 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
 
                   {/* Technical Meta List */}
                   <div className="space-y-3 pt-2">
-                    <div className="flex items-center justify-between p-3 bg-slate-950/40 rounded-lg border border-slate-800/50 hover:bg-slate-950/60 transition-colors">
-                      <div className="flex items-center gap-3">
-                        <div className="p-1.5 bg-emerald-500/10 rounded">
-                          <Code size={14} className="text-emerald-500" />
+                    <div className="flex flex-wrap items-center gap-3 p-4 bg-slate-950/40 rounded-xl border border-slate-800/50 hover:bg-slate-950/60 transition-colors">
+                      {repoMetadata.languages && repoMetadata.languages.length > 0 ? (
+                        repoMetadata.languages.slice(0, 10).map((lang: string) => {
+                          const mapping: Record<string, string> = {
+                            'JavaScript': 'js', 'TypeScript': 'ts', 'Python': 'py',
+                            'HTML': 'html', 'CSS': 'css', 'Rust': 'rust', 'Go': 'go',
+                            'C++': 'cpp', 'Java': 'java', 'PHP': 'php', 'Ruby': 'ruby',
+                            'Shell': 'bash', 'Vue': 'vue', 'React': 'react', 'C': 'c', 'C#': 'cs'
+                          };
+                          const iconId = mapping[lang] || lang.toLowerCase().replace('#', 's').replace('++', 'pp');
+                          return (
+                            <img 
+                              key={lang}
+                              src={`https://skillicons.dev/icons?i=${iconId}`}
+                              alt={lang}
+                              title={lang}
+                              className="w-6 h-6 sm:w-8 sm:h-8 hover:scale-110 transition-transform cursor-help"
+                            />
+                          );
+                        })
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <Code size={16} className="text-slate-500" />
+                          <span className="text-xs font-mono text-slate-400">Technology stack identified during scan</span>
                         </div>
-                        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Main Language</span>
-                      </div>
-                      <span className="text-xs font-mono text-slate-200">{repoMetadata.language || 'Multi'}</span>
+                      )}
                     </div>
 
                     <div className="flex items-center justify-between p-3 bg-slate-950/40 rounded-lg border border-slate-800/50 hover:bg-slate-950/60 transition-colors">
@@ -590,49 +631,33 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
                   </div>
                 </div>
               </div>
-              :
-              <div className="p-6 bg-slate-900/50 border border-slate-800 rounded-lg space-y-6">
-                <h2 className="text-sm font-semibold text-emerald-500 uppercase tracking-wider flex items-center gap-2">
-                  <Activity size={14} className="animate-pulse" /> SYSTEM STATUS
-                </h2>
+            )}
+          </div>
 
-                {/* Specs Grid */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <div className="text-[10px] text-slate-500 uppercase font-bold tracking-widest">Analysis Engine</div>
-                    <div className="text-[11px] text-slate-300 font-mono truncate">Llama-3.3-70b-Groq</div>
-                  </div>
-                  <div className="space-y-1 text-right">
-                    <div className="text-[10px] text-slate-500 uppercase font-bold tracking-widest">Encryption Standard</div>
-                    <div className="text-[11px] text-slate-300 font-mono">NDJSON / AES-256-V2</div>
-                  </div>
+          <div className={`md:col-span-2 bg-slate-950 border border-slate-800 rounded-xl overflow-hidden flex flex-col ${isLogCollapsed ? 'h-auto md:h-[700px]' : 'h-[500px] md:h-[700px]'} shadow-inner transition-all duration-300`}>
+            <div className="bg-slate-900/80 border-b border-slate-800 p-4 flex items-center justify-between backdrop-blur-sm">
+              <div className="flex items-center gap-6">
+                <div className="flex items-center gap-2">
+                  <Terminal size={18} className="text-emerald-500" />
+                  <span className="font-mono text-sm font-bold tracking-widest text-slate-300">ANALYSIS LOG</span>
                 </div>
-
-                {/* Status & Timer Bar */}
-                <div className="flex items-center justify-between pt-4 border-t border-slate-800/50">
+                
+                {/* Integrated Status & Timer */}
+                <div className="hidden sm:flex items-center gap-4 pl-6 border-l border-slate-800">
                   <div className="flex items-center gap-2">
-                    <div className={`w-2 h-2 rounded-full ${isScanning ? 'bg-blue-500 animate-pulse' : 'bg-emerald-500'} shadow-[0_0_8px_rgba(16,185,129,0.3)]`} />
-                    <span className="text-[10px] text-slate-400 font-bold tracking-widest uppercase">
+                    <div className={`w-1.5 h-1.5 rounded-full ${isScanning ? 'bg-blue-500 animate-pulse' : 'bg-emerald-500'} shadow-[0_0_8px_rgba(16,185,129,0.3)]`} />
+                    <span className="text-[10px] text-slate-500 font-bold tracking-widest uppercase">
                       {isScanning ? 'SCAN ACTIVE' : 'ENGINE READY'}
                     </span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Timer size={12} className="text-slate-500" />
-                    <span className="text-xs text-slate-300 font-mono">
+                  <div className="flex items-center gap-2 bg-slate-950/50 px-2 py-0.5 rounded border border-slate-800">
+                    <Timer size={10} className="text-slate-600" />
+                    <span className="text-[10px] text-slate-400 font-mono">
                       {Math.floor(elapsedTime / 60).toString().padStart(2, '0')}:
                       {(elapsedTime % 60).toString().padStart(2, '0')}s
                     </span>
                   </div>
                 </div>
-              </div>
-            }
-          </div>
-
-          <div className={`md:col-span-2 bg-slate-950 border border-slate-800 rounded-xl overflow-hidden flex flex-col ${isLogCollapsed ? 'h-auto md:h-[700px]' : 'h-[500px] md:h-[700px]'} shadow-inner transition-all duration-300`}>
-            <div className="bg-slate-900/80 border-b border-slate-800 p-4 flex items-center justify-between backdrop-blur-sm">
-              <div className="flex items-center gap-2">
-                <Terminal size={18} className="text-emerald-500" />
-                <span className="font-mono text-sm font-bold tracking-widest text-slate-300">ANALYSIS LOG</span>
               </div>
               <div className="flex items-center gap-4">
                 <button
