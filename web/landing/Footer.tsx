@@ -61,6 +61,7 @@ export const Footer: React.FC = () => {
             <h4 className="text-white font-bold text-sm mb-6 uppercase tracking-wider">Product</h4>
             <ul className="space-y-4 text-sm text-slate-500">
               <li><Link href="/welcome#features" className="hover:text-emerald-500 transition-colors">Features</Link></li>
+              <li><Link href="/about" className="hover:text-emerald-500 transition-colors">About</Link></li>
               <li><Link href="/" className="hover:text-emerald-500 transition-colors">Scanner</Link></li>
               <li><Link href="https://github.com/mfscpayload-690/lumescan" target="_blank" className="hover:text-emerald-500 transition-colors">Source Code</Link></li>
             </ul>
