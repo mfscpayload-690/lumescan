@@ -1,5 +1,5 @@
 import React from 'react';
-import { Shield, Cpu, Globe, Database, Terminal, Code, Server, Layers } from 'lucide-react';
+import Image from 'next/image';
 
 const technologies = [
   {
@@ -58,7 +58,7 @@ export const TechStack: React.FC = () => {
             <p className="text-slate-400 leading-relaxed">
               LumeScan integrates seamlessly into modern polyglot infrastructure.
               From systems programming in Rust to complex web architectures in TypeScript,
-              we've got you covered.
+              we&apos;ve got you covered.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               {["OWASP Top 10", "CWE", "SANS 25"].map((std) => (
@@ -76,10 +76,13 @@ export const TechStack: React.FC = () => {
                 className={`group p-6 bg-slate-950 border border-slate-900 rounded-2xl flex flex-col items-center justify-center gap-3 hover:border-emerald-500/30 hover:bg-slate-900/40 transition-all duration-300 reveal reveal-up reveal-delay-${idx % 4 + 1}`}
               >
                 <div className="w-16 h-16 flex items-center justify-center mb-1">
-                  <img
+                  <Image
                     src={tech.logo}
                     alt={`${tech.name} logo`}
+                    width={48}
+                    height={48}
                     className={`w-12 h-12 object-contain transition-all duration-300 ${tech.invert ? 'brightness-200 invert' : ''} group-hover:scale-110`}
+                    unoptimized
                   />
                 </div>
                 <div className="text-center">

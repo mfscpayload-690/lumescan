@@ -1,6 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
-import { Shield, Coffee } from 'lucide-react';
+import Image from 'next/image';
+import { Coffee } from 'lucide-react';
 
 const GithubIcon = ({ size = 24, ...props }: { size?: number } & React.SVGProps<SVGSVGElement>) => (
   <svg
@@ -27,9 +28,11 @@ export const Navbar: React.FC = () => {
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center gap-2">
             <Link href="/welcome" className="flex items-center gap-2 sm:gap-3 group">
-              <img
+              <Image
                 src="/lumescan-logo.png"
                 alt="LumeScan Logo"
+                width={36}
+                height={36}
                 className="w-8 h-8 sm:w-9 sm:h-9 object-contain rounded-lg group-hover:scale-105 transition-transform"
               />
               <span className="text-base sm:text-xl font-bold tracking-tighter text-white">

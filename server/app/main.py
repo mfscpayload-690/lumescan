@@ -1,11 +1,13 @@
-from fastapi import FastAPI, Request, HTTPException
+import re
+import traceback
+
+import httpx
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-import re
-import httpx
-import traceback
-from app.services.analyze import analyze_service
+
 from app.core.config import settings
+from app.services.analyze import analyze_service
 
 app = FastAPI(title="LumeScan API", version="1.0.0", redirect_slashes=False)
 
@@ -38,9 +40,6 @@ app.add_middleware(
 async def root():
     """
     Return a simple health-check message indicating the API is running.
-    
-    Returns:
-        dict: A dictionary with a single key `"message"` whose value is `"LumeScan API is running"`.
     """
     return {"message": "LumeScan API is running"}
 
@@ -55,7 +54,6 @@ async def search_repos(q: str):
     
     try:
         async with httpx.AsyncClient() as client:
-            # Search repositories, sorted by stars for better quality results
             url = f"https://api.github.com/search/repositories?q={q}&per_page=5&sort=stars"
             response = await client.get(url)
             if response.status_code != 200:
@@ -77,10 +75,7 @@ async def search_repos(q: str):
 @app.post("/api/v1/scan/init")
 async def init_scan(request: ScanRequest):
     """
-    Fetches a GitHub repository tree, classifies blob files by category, and returns a paginated subset of matching files.
-    
-    Parameters:
-        request (ScanRequest): Contains `repo_url` (GitHub repository URL or owner/repo slug) and `offset` (pagination start index).
+    Fetches a GitHub repository tree and returns matching files.
     """
     url = request.repo_url.strip().rstrip("/")
     match = GITHUB_URL_PATTERN.match(url)
@@ -92,12 +87,14 @@ async def init_scan(request: ScanRequest):
         if len(parts) == 2:
             owner, repo = parts
         else:
-            raise HTTPException(status_code=400, detail="Invalid format. Use 'owner/repo' or full URL.")
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid format. Use 'owner/repo' or full URL."
+            )
     else:
         raise HTTPException(status_code=400, detail="Invalid GitHub repository format.")
     
     try:
-        # Increase timeout for large repositories or slow API responses
         timeout = httpx.Timeout(20.0, connect=5.0)
         async with httpx.AsyncClient(follow_redirects=True, timeout=timeout) as client:
             tree_url = f"https://api.github.com/repos/{owner}/{repo}/git/trees/main?recursive=1"
@@ -106,123 +103,112 @@ async def init_scan(request: ScanRequest):
                 if response.status_code != 200:
                     tree_url = f"https://api.github.com/repos/{owner}/{repo}/git/trees/master?recursive=1"
                     response = await client.get(tree_url)
-            except httpx.TimeoutException:
-                raise HTTPException(status_code=504, detail="GitHub API timed out while fetching repository tree. The repo might be too large.")
+            except httpx.TimeoutException as e:
+                raise HTTPException(
+                    status_code=504,
+                    detail="GitHub API timed out while fetching repository tree."
+                ) from e
             
             if response.status_code != 200:
-                raise HTTPException(status_code=response.status_code, detail="Failed to fetch repository tree")
+                raise HTTPException(
+                    status_code=response.status_code,
+                    detail="Failed to fetch repository tree"
+                )
             
             tree_data = response.json()
             
-            # Fetch Repo Metadata for context - wrap in try to make it non-blocking if it fails
+            # Fetch additional metadata for UI
+            meta_url = f"https://api.github.com/repos/{owner}/{repo}"
+            meta_response = await client.get(meta_url)
+            languages_url = f"https://api.github.com/repos/{owner}/{repo}/languages"
+            languages_response = await client.get(languages_url)
+            
             metadata = {}
-            try:
-                repo_meta_url = f"https://api.github.com/repos/{owner}/{repo}"
-                meta_res = await client.get(repo_meta_url)
-                if meta_res.status_code == 200:
-                    m = meta_res.json()
-                    # Fetch all languages
-                    lang_url = f"https://api.github.com/repos/{owner}/{repo}/languages"
-                    lang_res = await client.get(lang_url)
-                    languages_data = lang_res.json() if lang_res.status_code == 200 else {}
-                    
-                    metadata = {
-                        "full_name": m.get("full_name"),
-                        "stars": m.get("stargazers_count"),
-                        "forks": m.get("forks_count"),
-                        "language": m.get("language"),
-                        "languages": list(languages_data.keys()),
-                        "license": m.get("license", {}).get("name") if m.get("license") else "No License",
-                        "updated_at": m.get("updated_at"),
-                        "open_issues": m.get("open_issues_count"),
-                        "description": m.get("description"),
-                        "watchers": m.get("subscribers_count"),
-                        "visibility": m.get("visibility"),
-                        "size": m.get("size")
-                    }
-            except Exception as e:
-                # Log error but don't fail the whole scan for metadata
-                print(f"Warning: Failed to fetch metadata: {str(e)}")
-                metadata = {"error": "Metadata timeout"}
+            if meta_response.status_code == 200:
+                m = meta_response.json()
+                languages_data = languages_response.json() if languages_response.status_code == 200 else {}
+                metadata = {
+                    "full_name": m.get("full_name"),
+                    "description": m.get("description"),
+                    "stars": m.get("stargazers_count"),
+                    "forks": m.get("forks_count"),
+                    "language": m.get("language"),
+                    "languages": list(languages_data.keys()),
+                    "license": m.get("license", {}).get("name") if m.get("license") else "No License",
+                    "updated_at": m.get("updated_at"),
+                    "open_issues": m.get("open_issues_count"),
+                }
 
-            files = []
+            all_files = []
             for item in tree_data.get("tree", []):
-                if item["type"] == "blob":
-                    path = item["path"]
-                    category = None
-                    if any(path.lower().endswith(ext) for ext in [
-                        ".py", ".js", ".ts", ".jsx", ".tsx",  # Web & Scripts
-                        ".rs", ".go",                         # Systems
-                        ".cpp", ".h", ".hpp", ".c", ".cc",    # C/C++
-                        ".rb", ".php"                         # Legacy/Web
-                    ]):
+                if item.get("type") == "blob":
+                    path = item.get("path", "")
+                    category = "General"
+                    
+                    logic_exts = [
+                        ".py", ".js", ".ts", ".tsx", ".jsx", ".go", ".rs", ".rb",
+                        ".php", ".java", ".cpp", ".c", ".cs"
+                    ]
+                    config_exts = [".yaml", ".yml", ".json", ".conf", ".ini", ".toml", ".xml"]
+                    
+                    if any(path.lower().endswith(ext) for ext in logic_exts):
                         category = "Logic"
-                    elif any(path.lower().endswith(ext) for ext in [".yaml", ".yml", ".json", ".conf", ".ini", ".toml", ".xml"]):
+                    elif any(path.lower().endswith(ext) for ext in config_exts):
                         category = "Config"
-                    elif "workflow" in path.lower() or path.lower().endswith((".github/workflows", "gitlab-ci.yml")):
+                    elif "workflow" in path.lower() or path.lower().endswith(
+                        (".github/workflows", "gitlab-ci.yml")
+                    ):
                         category = "Workflow"
                     elif any(name in path.lower() for name in ["dockerfile", "containerfile"]):
-                        category = "Config"
+                        category = "Infrastructure"
                     
-                    if category:
-                        files.append({"path": path, "category": category})
+                    all_files.append({"path": path, "category": category})
+
+            files = all_files[request.offset : request.offset + 50]
+            total_found = len(all_files)
             
-            # Cap at 50 files for stability with pagination
-            total_found = len(files)
-            files = files[request.offset : request.offset + 50]
+            next_cursor = None
+            if total_found > request.offset + 50:
+                next_cursor = f"Showing {request.offset + 1}-{request.offset + len(files)} of {total_found}."
             
             return {
-                "owner": owner, 
-                "repo": repo, 
-                "files_found": files,
+                "owner": owner,
+                "repo": repo,
+                "files": files,
                 "total_found": total_found,
-                "offset": request.offset,
-                "metadata": metadata,
-                "message": f"Showing files {request.offset + 1}-{request.offset + len(files)} of {total_found}." if total_found > 50 else None
+                "next_cursor": next_cursor,
+                "metadata": metadata
             }
-            
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail="An error occurred while initializing the scan.")
+        raise HTTPException(
+            status_code=500, detail="An error occurred while initializing the scan."
+        ) from None
 
 @app.post("/api/v1/scan/analyze")
-async def analyze_repo(request: AnalyzeRequest):
+async def analyze_scan(request: AnalyzeRequest):
     """
-    Stream per-file analysis results for the given repository files.
-    
-    Parameters:
-        request (AnalyzeRequest): Request containing `owner`, `repo`, and `files`. Each item in `files` is expected to include at least `path` and `category`.
-    
-    Returns:
-        StreamingResponse: A response that yields newline-delimited JSON objects. Each yielded line is either an analysis result for a file or an error object with the shape `{"file": <path>, "error": <message>}`.
+    Analyzes files using the AI service.
     """
     from fastapi.responses import StreamingResponse
     import asyncio
     import json
     
     async def generate_results():
-        """
-        Yield per-file analysis results and per-file errors as newline-terminated JSON strings.
-        
-        Each iteration waits 1.5 seconds, invokes the analysis service for the current file, and yields the analysis result serialized as JSON with a trailing newline. If analyzing a file raises an exception, yields a JSON object containing the file path and the error message (also newline-terminated).
-        
-        Returns:
-            An async generator that yields strings. Each yielded string is either:
-              - the JSON-serialized analysis result followed by "\n", or
-              - the JSON-serialized error object {"file": <path>, "error": <message>} followed by "\n".
-        """
         for file_info in request.files:
             try:
-                # 1.5s safety delay between files
-                await asyncio.sleep(1.5)
                 result = await analyze_service.analyze_file(
-                    request.owner, request.repo, file_info.path, file_info.category
+                    request.owner,
+                    request.repo,
+                    file_info.path,
+                    file_info.category
                 )
                 yield f"{json.dumps(result)}\n"
-            except Exception as e:
+            except Exception:
                 traceback.print_exc()
-                yield f"{json.dumps({'file': file_info.path, 'error': 'Analysis failed for this file'})}\n"
+                yield f"{json.dumps({'file': file_info.path, 'error': 'Analysis failed'})}\n"
+            await asyncio.sleep(0.1)
     
     return StreamingResponse(generate_results(), media_type="application/x-ndjson")

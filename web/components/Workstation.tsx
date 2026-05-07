@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import {
-  Terminal, ShieldCheck, Zap, AlertTriangle, Copy,
+  Terminal, Zap, AlertTriangle, Copy,
   FileCode, FileText, Square, Play, Star, GitFork,
-  Clock, Shield, Code, FileDown, Timer, Eye,
-  ChevronDown, ChevronUp, Package, AlertCircle, Coffee
+  Clock, Shield, ChevronDown, ChevronUp, Package, AlertCircle, Coffee
 } from 'lucide-react';
 
 interface LogEntry {
@@ -38,7 +38,7 @@ const getLanguageColor = (lang: string) => {
   return colors[lang] || '#8b949e';
 };
 
-const Github = ({ size = 24, ...props }: { size?: number } & React.SVGProps<SVGSVGElement>) => (
+const GithubIcon = ({ size = 24, ...props }: { size?: number } & React.SVGProps<SVGSVGElement>) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     width={size}
@@ -65,20 +65,36 @@ interface Finding {
   recommendation: string;
 }
 
+interface RepoSearchResult {
+  full_name: string;
+  description?: string;
+}
+
+interface RepoMetadata {
+  full_name: string;
+  description: string;
+  stars: number;
+  forks: number;
+  language: string;
+  languages: string[];
+  license: string;
+  updated_at: string;
+  open_issues: number;
+}
+
 interface WorkstationProps {
   initialRepo?: string;
 }
 
 export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
   const [repoUrl, setRepoUrl] = useState(initialRepo || '');
-  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchResults, setSearchResults] = useState<RepoSearchResult[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [findings, setFindings] = useState<Finding[]>([]);
   const [isScanning, setIsScanning] = useState(false);
-  const [offset, setOffset] = useState(0);
   const [totalFound, setTotalFound] = useState(0);
-  const [repoMetadata, setRepoMetadata] = useState<any>(null);
+  const [repoMetadata, setRepoMetadata] = useState<RepoMetadata | null>(null);
   const [scanStartTime, setScanStartTime] = useState<number | null>(null);
   const [elapsedTime, setElapsedTime] = useState(0);
   const logEndRef = useRef<HTMLDivElement>(null);
@@ -86,7 +102,7 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
   const abortControllerRef = useRef<AbortController | null>(null);
   const [isLogCollapsed, setIsLogCollapsed] = useState(true);
 
-  const addLog = (message: string, type: LogEntry['type'] = 'info') => {
+  const addLog = useCallback((message: string, type: LogEntry['type'] = 'info') => {
     const newLog: LogEntry = {
       id: Math.random().toString(36).substring(7),
       message,
@@ -94,18 +110,140 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
       timestamp: new Date().toLocaleTimeString(),
     };
     setLogs((prev) => [...prev, newLog]);
-  };
+  }, []);
 
   useEffect(() => {
-    // Only scroll if we have more than the boot sequence logs
     if (logs.length > 4) {
       logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
   }, [logs]);
 
-  const hasBooted = useRef(false);
-  const initialScanTriggered = useRef(false);
+  const executeScan = useCallback(async (currentOffset: number = 0, targetRepo: string = repoUrl) => {
+    setIsScanning(true);
+    abortControllerRef.current = new AbortController();
+    const signal = abortControllerRef.current.signal;
 
+    if (currentOffset === 0) {
+      setFindings([]);
+      setLogs([]);
+      setTotalFound(0);
+      setScanStartTime(Date.now());
+      setElapsedTime(0);
+    }
+
+    addLog(`Initiating scan for: ${targetRepo}`, 'info');
+
+    try {
+      addLog('Validating repository structure...', 'info');
+
+      const apiBase = process.env.NEXT_PUBLIC_API_BASE || 'http://127.0.0.1:8000';
+      const response = await fetch(`${apiBase}/api/v1/scan/init`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ repo_url: targetRepo, offset: currentOffset }),
+        signal
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to initialize scan');
+      }
+
+      const data = await response.json();
+      setTotalFound(data.total_found);
+      setRepoMetadata(data.metadata);
+
+      addLog(`Found ${data.total_found} target files.`, 'info');
+
+      if (data.files && data.files.length > 0) {
+        if (signal.aborted) return;
+        addLog(`Initiating prioritized AI analysis for ${data.files.length} files...`, 'info');
+
+        const analyzeResponse = await fetch(`${apiBase}/api/v1/scan/analyze`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            owner: data.owner,
+            repo: data.repo,
+            files: data.files
+          }),
+          signal
+        });
+
+        if (!analyzeResponse.ok) {
+          throw new Error('AI Analysis failed');
+        }
+
+        const reader = analyzeResponse.body?.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        if (reader) {
+          while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || '';
+
+            for (const line of lines) {
+              if (!line.trim()) continue;
+              try {
+                const result = JSON.parse(line);
+                if (result.error) {
+                  addLog(`Error analyzing ${result.file}: ${result.error}`, 'error');
+                  continue;
+                }
+                
+                if (result.findings && result.findings.length > 0) {
+                  const newFindings = result.findings.map((finding: Finding) => ({
+                    file: result.file,
+                    category: result.category,
+                    ...finding
+                  }));
+
+                  const severityWeight: Record<string, number> = {
+                    'Critical': 5,
+                    'High': 4,
+                    'Medium': 3,
+                    'Low': 2,
+                    'Informational': 1
+                  };
+
+                  setFindings(prev => {
+                    const combined = [...prev, ...newFindings];
+                    return combined.sort((a, b) =>
+                      (severityWeight[b.severity] || 0) - (severityWeight[a.severity] || 0)
+                    );
+                  });
+
+                  newFindings.forEach((f: Finding) => {
+                    addLog(`[${f.severity}] ${result.file}: ${f.description}`,
+                      f.severity === 'Critical' || f.severity === 'High' ? 'error' : 'warning');
+                  });
+                } else {
+                  addLog(`Clean: ${result.file}`, 'success');
+                }
+              } catch (e) {
+                console.error("Failed to parse analysis line:", e);
+              }
+            }
+          }
+        }
+      }
+
+      addLog('Scan sequence completed.', 'success');
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        addLog('Scan aborted by user.', 'warning');
+      } else {
+        addLog(`Scan failed: ${error.message}`, 'error');
+      }
+    } finally {
+      setIsScanning(false);
+      abortControllerRef.current = null;
+    }
+  }, [repoUrl, addLog]);
 
   // Progressive Search Logic
   useEffect(() => {
@@ -134,25 +272,16 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
 
   // Timer Logic
   useEffect(() => {
-    let interval: any;
-    if (isScanning) {
-      if (!scanStartTime) setScanStartTime(Date.now());
+    let interval: NodeJS.Timeout;
+    if (isScanning && scanStartTime) {
       interval = setInterval(() => {
-        setElapsedTime(Math.floor((Date.now() - (scanStartTime || Date.now())) / 1000));
+        setElapsedTime(Math.floor((Date.now() - scanStartTime) / 1000));
       }, 1000);
-    } else {
-      clearInterval(interval);
     }
-    return () => clearInterval(interval);
+    return () => {
+      if (interval) clearInterval(interval);
+    };
   }, [isScanning, scanStartTime]);
-
-  // Reset timer on new scan
-  useEffect(() => {
-    if (isScanning && offset === 0) {
-      setScanStartTime(Date.now());
-      setElapsedTime(0);
-    }
-  }, [isScanning, offset]);
 
   // Close dropdown on click outside
   useEffect(() => {
@@ -168,638 +297,338 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (isScanning) return;
-
-    const trimmedRepo = repoUrl.trim();
-    if (!trimmedRepo) {
-      addLog('Validation Error: Repository path cannot be empty.', 'error');
-      return;
-    }
-
     executeScan(0);
   };
 
-  const executeScan = async (currentOffset: number = 0, targetRepo: string = repoUrl) => {
-    setIsScanning(true);
-    abortControllerRef.current = new AbortController();
-    const signal = abortControllerRef.current.signal;
-
-    if (currentOffset === 0) {
-      setFindings([]);
-      setLogs([]);
-      setOffset(0);
-      setTotalFound(0);
-    }
-
-    addLog(`Initiating scan for: ${targetRepo} (Batch: ${currentOffset / 50 + 1})`, 'info');
-
-    try {
-      addLog('Validating repository structure...', 'info');
-
-      const apiBase = process.env.NEXT_PUBLIC_API_BASE || 'http://127.0.0.1:8000';
-      const response = await fetch(`${apiBase}/api/v1/scan/init`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ repo_url: targetRepo, offset: currentOffset }),
-        signal
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to initialize scan');
-      }
-
-      const data = await response.json();
-      setTotalFound(data.total_found);
-      setOffset(data.offset);
-      setRepoMetadata(data.metadata);
-
-      addLog(`Found ${data.total_found} target files.`, 'info');
-      if (data.message) {
-        addLog(data.message, 'warning');
-      }
-
-      addLog('Prioritizing and categorizing tree...', 'info');
-      data.files_found.forEach((f: any) => {
-        addLog(`Target: ${f.path} [${f.category}]`, 'success');
-      });
-
-      if (data.files_found.length > 0) {
-        if (signal.aborted) return;
-        addLog(`Initiating prioritized AI analysis for ${data.files_found.length} files...`, 'info');
-
-        const analyzeResponse = await fetch(`${apiBase}/api/v1/scan/analyze`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            owner: data.owner,
-            repo: data.repo,
-            files: data.files_found
-          }),
-          signal
-        });
-
-        if (!analyzeResponse.ok) {
-          throw new Error('AI Analysis failed');
-        }
-
-        const reader = analyzeResponse.body?.getReader();
-        const decoder = new TextDecoder();
-        let buffer = '';
-
-        if (reader) {
-          while (true) {
-            const { value, done } = await reader.read();
-            if (done) break;
-
-            buffer += decoder.decode(value, { stream: true });
-            const lines = buffer.split('\n');
-            buffer = lines.pop() || '';
-
-            for (const line of lines) {
-              if (!line.trim()) continue;
-              try {
-                const result = JSON.parse(line);
-
-                if (result.error) {
-                  addLog(`Error analyzing ${result.file}: ${result.error}`, 'error');
-                } else if (result.findings && result.findings.length > 0) {
-                  const newFindings = result.findings.map((finding: any) => ({
-                    file: result.file,
-                    category: result.category,
-                    ...finding
-                  }));
-
-                  const severityWeight: Record<string, number> = {
-                    'Critical': 5,
-                    'High': 4,
-                    'Medium': 3,
-                    'Low': 2,
-                    'Informational': 1
-                  };
-
-                  setFindings(prev => {
-                    const combined = [...prev, ...newFindings];
-                    return combined.sort((a, b) =>
-                      (severityWeight[b.severity] || 0) - (severityWeight[a.severity] || 0)
-                    );
-                  });
-
-                  newFindings.forEach((f: any) => {
-                    addLog(`[${f.severity}] ${result.file} (${result.category}): ${f.description}`,
-                      f.severity === 'Critical' || f.severity === 'High' ? 'error' : 'warning');
-                  });
-                } else {
-                  addLog(`Analysis for ${result.file} (${result.category}): No critical issues.`, 'success');
-                }
-              } catch (e) {
-                console.error("Error parsing stream chunk:", e);
-              }
-            }
-          }
-        }
-      }
-
-      addLog('Full security audit complete.', 'success');
-    } catch (err) {
-      if ((err as any).name === 'AbortError') {
-        addLog('Security audit terminated. Displaying results found so far.', 'warning');
-      } else {
-        addLog(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`, 'error');
-      }
-    } finally {
-      setIsScanning(false);
-      abortControllerRef.current = null;
-    }
-  };
-
-  // System Boot Sequence & Auto-Scan
-  useEffect(() => {
-    if (!hasBooted.current) {
-      const bootSequence = [
-        { msg: 'LumeScan Professional v1.0.4 initializing...', type: 'info' as const, delay: 100 },
-        { msg: 'Establishing secure link to analysis cluster...', type: 'info' as const, delay: 600 },
-        { msg: 'Services Online: Security_Core, Dependency_Sentry, Secret_Vault.', type: 'success' as const, delay: 1100 },
-        { msg: 'SESSION AUTHORIZED. System ready.', type: 'success' as const, delay: 1600 }
-      ];
-
-      bootSequence.forEach((item) => {
-        setTimeout(() => {
-          addLog(item.msg, item.msg.includes('AUTHORIZED') || item.msg.includes('Online') ? 'success' : 'info');
-        }, item.delay);
-      });
-
-      hasBooted.current = true;
-    }
-
-    // If deep linked, auto-trigger scan after boot (only once)
-    if (initialRepo && !initialScanTriggered.current) {
-      setTimeout(() => {
-        if (!initialScanTriggered.current) {
-          executeScan(0, initialRepo);
-          initialScanTriggered.current = true;
-        }
-      }, 2000);
-    }
-  }, [initialRepo]);
-
-  const handleStopScan = () => {
+  const stopScan = () => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
-      addLog('Terminating active audit stream...', 'warning');
     }
   };
 
-  const exportResults = (format: 'xml' | 'yaml' | 'markdown') => {
-    let content = '';
-    const timestamp = new Date().toISOString();
-    const promptHeader = `### SECURITY REMEDIATION TASK ###\nRepository: ${repoUrl}\nGenerated: ${timestamp}\nTotal Issues: ${findings.length}\n\nINSTRUCTIONS FOR AI AGENT:\nYou are an expert Security Engineer. Analyze the following ${format.toUpperCase()} audit data from LumeScan and provide a detailed implementation plan and code patches to remediate these vulnerabilities. Prioritize 'Critical' and 'High' severity items.\n\n`;
+  const hasBooted = useRef(false);
+  useEffect(() => {
+    if (!hasBooted.current) {
+      const messages: [string, LogEntry['type']][] = [
+        ['[SYSTEM] LumeScan Core v1.0.4 initialized.', 'boot'],
+        ['[SYSTEM] Connecting to Groq LPU Inference Engine...', 'boot'],
+        ['[SYSTEM] Secure WebSocket tunnel established.', 'boot'],
+        ['[SYSTEM] Ready for target acquisition.', 'boot'],
+      ];
 
-    if (format === 'xml') {
-      const xmlFindings = findings.map(f => `
-  <vulnerability>
-    <file>${f.file}</file>
-    <severity>${f.severity}</severity>
-    <category>${f.category}</category>
-    <type>${f.type}</type>
-    <description>${f.description}</description>
-    <recommendation>${f.recommendation}</recommendation>
-  </vulnerability>`).join('');
-      content = `${promptHeader}<security_audit>\n  <metadata>\n    <repo>${repoUrl}</repo>\n    <count>${findings.length}</count>\n  </metadata>\n  <findings>${xmlFindings}\n  </findings>\n</security_audit>`;
-    } else if (format === 'yaml') {
-      const yamlFindings = findings.map(f => `  - file: "${f.file}"
-    severity: "${f.severity}"
-    category: "${f.category}"
-    type: "${f.type}"
-    description: "${f.description.replace(/"/g, "'")}"
-    recommendation: "${f.recommendation.replace(/"/g, "'")}"`).join('\n');
-      content = `${promptHeader}security_audit:\n  repository: "${repoUrl}"\n  findings:\n${yamlFindings}`;
-    } else {
-      const mdFindings = findings.map(f => `### [${f.severity}] ${f.file}\n- **Category**: ${f.category}\n- **Type**: ${f.type}\n- **Description**: ${f.description}\n- **Remediation**: ${f.recommendation}\n`).join('\n');
-      content = `${promptHeader}# Security Audit Report: ${repoUrl}\n\n${mdFindings}`;
+      messages.forEach((m, i) => {
+        setTimeout(() => addLog(m[0], m[1]), i * 400);
+      });
+      hasBooted.current = true;
     }
+  }, [addLog]);
 
-    const blob = new Blob([content], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `lumescan_audit_${new Date().getTime()}.${format === 'markdown' ? 'md' : format}`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    addLog(`Exported ${format.toUpperCase()} AI Package.`, 'success');
-  };
+  useEffect(() => {
+    if (initialRepo && !isScanning) {
+      executeScan(0, initialRepo);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white p-6 selection:bg-emerald-500/30">
-      <div className="max-w-[1440px] mx-auto">
-        {/* Subtle Decorative Background */}
-        <div className="fixed inset-0 bg-[radial-gradient(circle_at_50%_-20%,rgba(16,185,129,0.05),transparent_50%)] pointer-events-none" />
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-in fade-in duration-700">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Control Panel */}
+        <div className="space-y-8">
+          <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-6 shadow-xl backdrop-blur-xl">
+            <h2 className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+              <Zap size={14} className="text-emerald-500" /> Target Acquisition
+            </h2>
+            
+            <form onSubmit={handleFormSubmit} className="relative" ref={dropdownRef}>
+              <div className="relative group">
+                <input
+                  type="text"
+                  value={repoUrl}
+                  onChange={(e) => setRepoUrl(e.target.value)}
+                  placeholder="owner/repo or github url"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-200 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 transition-all placeholder:text-slate-700"
+                  disabled={isScanning}
+                />
+                <GithubIcon size={18} className="absolute right-4 top-3.5 text-slate-700 group-focus-within:text-emerald-500/50 transition-colors" />
+              </div>
 
-        {/* Header Mask & Vignette */}
-        <div className="sticky top-0 z-30 h-20 -mb-20 bg-gradient-to-b from-slate-950 via-slate-950/80 to-transparent backdrop-blur-sm pointer-events-none" />
-
-        <header className="sticky top-4 z-40 flex items-center justify-between mb-8 bg-slate-900/70 backdrop-blur-xl border border-slate-800 px-4 py-3 rounded-2xl shadow-2xl shadow-black/20 transition-all">
-          <Link href="/welcome" className="flex items-center gap-2 group">
-            <img src="/lumescan-logo.png" alt="LumeScan Logo" className="w-8 h-8 object-contain rounded-lg group-hover:scale-105 transition-transform" />
-            <h1 className="text-xl font-bold tracking-tighter text-white group-hover:text-emerald-400 transition-colors">LUME<span className="text-emerald-500">SCAN</span></h1>
-          </Link>
-          <div className="flex items-center gap-2">
-            <a
-              href="https://github.com/mfscpayload-690/lumescan"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="p-2 bg-slate-800 border border-slate-700/50 rounded-lg text-slate-400 hover:text-white hover:border-slate-500 transition-all group"
-              title="View Source on GitHub"
-            >
-              <Github size={18} />
-            </a>
-            <a
-              href="https://buymeacoffee.com/mfscpayload690"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="p-2 bg-slate-800 border border-slate-700/50 rounded-lg text-amber-400 hover:text-amber-300 hover:border-amber-500/50 transition-all flex items-center gap-2 group"
-              title="Support LumeScan"
-            >
-              <Coffee size={18} />
-              <span className="text-[10px] font-bold uppercase hidden sm:block text-slate-400 group-hover:text-amber-300">Support</span>
-            </a>
-          </div>
-        </header>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Controls */}
-          <div className="lg:col-span-1 space-y-6">
-            <div className="p-6 bg-slate-900/40 border border-slate-800 rounded-xl backdrop-blur-md relative z-20">
-              <h2 className="text-sm font-semibold text-emerald-500 uppercase tracking-wider mb-4">Repository Config</h2>
-              <form onSubmit={handleFormSubmit} className="space-y-4">
-                <div className="relative" ref={dropdownRef}>
-                  <label className="block text-xs text-slate-400 font-bold mb-2 uppercase tracking-tighter">Target Repository [ or Repo URL ]</label>
-                  <input
-                    type="text"
-                    autoFocus
-                    value={repoUrl}
-                    onChange={(e) => setRepoUrl(e.target.value)}
-                    onFocus={() => repoUrl.length >= 2 && !repoUrl.startsWith('http') && setShowDropdown(true)}
-                    placeholder="e.g. owner/repo"
-                    className="w-full bg-slate-950/50 border border-slate-800 px-4 py-3 rounded-lg text-sm focus:outline-none focus:border-emerald-500 transition-all cyber-glow placeholder:text-slate-600"
-                  />
-
-                  {/* Results Dropdown */}
-                  {showDropdown && searchResults.length > 0 && (
-                    <div className="absolute z-50 w-full mt-2 bg-slate-900 border border-slate-800 rounded-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-                      {searchResults.map((result, idx) => (
-                        <button
-                          key={idx}
-                          type="button"
-                          onClick={() => {
-                            setRepoUrl(result.full_name);
-                            setShowDropdown(false);
-                          }}
-                          className="w-full text-left px-4 py-3 hover:bg-slate-800 border-b border-slate-800 last:border-0 transition-colors"
-                        >
-                          <div className="text-sm font-bold text-emerald-400">{result.full_name}</div>
-                          {result.description && (
-                            <div className="text-[10px] text-slate-500 truncate">{result.description}</div>
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  )}
+              {/* Autocomplete Dropdown */}
+              {showDropdown && (
+                <div className="absolute z-50 w-full mt-2 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl overflow-hidden animate-in slide-in-from-top-2 duration-200">
+                  {searchResults.map((result, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => {
+                        setRepoUrl(result.full_name);
+                        setShowDropdown(false);
+                      }}
+                      className="w-full px-4 py-3 text-left hover:bg-slate-800 flex flex-col gap-1 transition-colors border-b border-white/5 last:border-0"
+                    >
+                      <span className="text-sm font-bold text-slate-200">{result.full_name}</span>
+                      {result.description && (
+                        <span className="text-xs text-slate-500 line-clamp-1">{result.description}</span>
+                      )}
+                    </button>
+                  ))}
                 </div>
-                {isScanning ? (
+              )}
+
+              <div className="flex gap-3 mt-4">
+                {!isScanning ? (
                   <button
-                    type="button"
-                    onClick={handleStopScan}
-                    className="w-full py-3 bg-rose-500 text-white font-bold rounded hover:bg-rose-600 transition-all flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(244,63,94,0.3)]"
+                    type="submit"
+                    className="flex-1 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold py-3 rounded-xl transition-all shadow-lg shadow-emerald-500/10 flex items-center justify-center gap-2 group active:scale-[0.98]"
                   >
-                    <Square size={16} fill="white" /> STOP AUDIT
+                    <Play size={16} fill="currentColor" /> Initialize Scan
                   </button>
                 ) : (
                   <button
-                    type="submit"
-                    disabled={!repoUrl.trim()}
-                    className="w-full py-3 bg-emerald-500 text-slate-950 font-bold rounded hover:bg-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+                    type="button"
+                    onClick={stopScan}
+                    className="flex-1 bg-slate-800 hover:bg-red-500/20 hover:text-red-500 text-slate-300 font-bold py-3 rounded-xl transition-all border border-slate-700 hover:border-red-500/50 flex items-center justify-center gap-2 group"
                   >
-                    <Play size={16} fill="currentColor" /> INITIALIZE AUDIT
+                    <Square size={16} fill="currentColor" className="group-hover:animate-pulse" /> Abort Scan
                   </button>
                 )}
-              </form>
-              {totalFound > offset + 50 && !isScanning && (
-                <button
-                  onClick={() => executeScan(offset + 50)}
-                  className="w-full mt-4 py-3 bg-transparent border border-emerald-500 text-emerald-500 font-bold rounded hover:bg-emerald-500/10 transition-all"
-                >
-                  SCAN NEXT BATCH ({offset + 51}-{Math.min(offset + 100, totalFound)})
-                </button>
-              )}
-            </div>
-
-            {!repoMetadata && !isScanning && (
-              <div className="p-6 bg-slate-900/40 border border-slate-800 rounded-xl backdrop-blur-md relative z-10 animate-in fade-in duration-500">
-                <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">Audit Scope</h2>
-                <ul className="text-xs space-y-2 text-slate-400">
-                  <li className="flex items-center gap-2"><div className="w-1 h-1 bg-emerald-500 rounded-full" /> Logic (Python/JS Controllers)</li>
-                  <li className="flex items-center gap-2"><div className="w-1 h-1 bg-emerald-500 rounded-full" /> Config (Dependencies/CORS)</li>
-                  <li className="flex items-center gap-2"><div className="w-1 h-1 bg-emerald-500 rounded-full" /> Secrets (.env/Keys)</li>
-                  <li className="flex items-center gap-2"><div className="w-1 h-1 bg-emerald-500 rounded-full" /> Workflows (CI/CD)</li>
-                </ul>
               </div>
-            )}
+            </form>
+          </div>
 
-            {repoMetadata && (
-              <div className="p-6 bg-slate-900/40 border border-slate-800 rounded-xl backdrop-blur-md relative z-10 animate-in fade-in slide-in-from-left-4 duration-500 shadow-xl">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-base sm:text-xl font-bold text-white flex items-center gap-2.5 truncate pr-4">
-                    <Zap size={20} className="text-blue-400 fill-blue-400/20 shrink-0" /> 
-                    {repoMetadata.full_name || (repoUrl && repoUrl.includes('/') ? repoUrl.split('/').filter(Boolean).slice(-2).join('/') : repoUrl) || 'REPOSITORY PULSE'}
-                  </h2>
-                  <div className="px-2 py-1 bg-slate-950 border border-slate-800 rounded text-[10px] font-mono text-slate-500 uppercase">
-                    {repoMetadata.visibility || 'Public'}
+          {/* Repo Info Card */}
+          {repoMetadata && (
+            <div className="bg-slate-900/30 border border-slate-800 rounded-2xl overflow-hidden reveal reveal-left shadow-2xl">
+              <div className="p-6 space-y-6">
+                <div className="flex items-center gap-4">
+                  <div className="h-12 w-12 rounded-xl bg-slate-800 flex items-center justify-center border border-white/5 overflow-hidden">
+                    <GithubIcon size={24} className="text-slate-400" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-white leading-tight">{repoMetadata.full_name}</h3>
+                    <div className="flex items-center gap-3 mt-1">
+                      <div className="flex items-center gap-1 text-[10px] text-slate-400">
+                        <Star size={10} className="text-amber-500" /> {repoMetadata.stars.toLocaleString()}
+                      </div>
+                      <div className="flex items-center gap-1 text-[10px] text-slate-400">
+                        <GitFork size={10} className="text-blue-500" /> {repoMetadata.forks.toLocaleString()}
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                <div className="space-y-6">
-                  {/* Primary Stats Grid - 4 in a row */}
-                  <div className="grid grid-cols-4 gap-2">
-                    <div className="p-2.5 bg-slate-950/80 border border-slate-800 rounded-lg flex flex-col gap-0.5 hover:border-amber-500/30 transition-colors group">
-                      <div className="text-slate-500 flex items-center gap-1.5 text-[9px] uppercase font-bold tracking-wider">
-                        <Star size={10} className="text-amber-400 group-hover:scale-110 transition-transform" /> Stars
-                      </div>
-                      <div className="text-base font-bold text-white tracking-tighter">
-                        {repoMetadata.stars?.toLocaleString() || '0'}
-                      </div>
+                <p className="text-xs text-slate-400 leading-relaxed italic line-clamp-3">
+                  &ldquo;{repoMetadata.description || 'No description provided.'}&rdquo;
+                </p>
+
+                <div className="space-y-3 pt-4 border-t border-white/5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-slate-500">
+                      <Shield size={12} />
+                      <span className="text-[10px] font-bold uppercase tracking-tighter">License:</span>
                     </div>
-                    <div className="p-2.5 bg-slate-950/80 border border-slate-800 rounded-lg flex flex-col gap-0.5 hover:border-blue-500/30 transition-colors group">
-                      <div className="text-slate-500 flex items-center gap-1.5 text-[9px] uppercase font-bold tracking-wider">
-                        <GitFork size={10} className="text-blue-400 group-hover:scale-110 transition-transform" /> Forks
-                      </div>
-                      <div className="text-base font-bold text-white tracking-tighter">
-                        {repoMetadata.forks?.toLocaleString() || '0'}
-                      </div>
-                    </div>
-                    <div className="p-2.5 bg-slate-950/80 border border-slate-800 rounded-lg flex flex-col gap-0.5 hover:border-rose-500/30 transition-colors group">
-                      <div className="text-slate-500 flex items-center gap-1.5 text-[9px] uppercase font-bold tracking-wider">
-                        <AlertCircle size={10} className="text-rose-500 group-hover:scale-110 transition-transform" /> Issues
-                      </div>
-                      <div className="text-base font-bold text-white tracking-tighter">
-                        {repoMetadata.open_issues?.toLocaleString() || '0'}
-                      </div>
-                    </div>
-                    <div className="p-2.5 bg-slate-950/80 border border-slate-800 rounded-lg flex flex-col gap-0.5 hover:border-emerald-500/30 transition-colors group">
-                      <div className="text-slate-500 flex items-center gap-1.5 text-[9px] uppercase font-bold tracking-wider">
-                        <Eye size={10} className="text-emerald-500 group-hover:scale-110 transition-transform" /> Watch
-                      </div>
-                      <div className="text-base font-bold text-white tracking-tighter">
-                        {repoMetadata.watchers?.toLocaleString() || '0'}
-                      </div>
-                    </div>
+                    <span className="text-[10px] font-mono text-emerald-500 font-bold px-2 py-0.5 bg-emerald-500/10 rounded-md">
+                      {repoMetadata.license}
+                    </span>
                   </div>
 
-                  {/* Technical Meta List */}
-                  <div className="space-y-3 pt-2">
-                    <div className="flex flex-wrap items-center gap-3 p-4 bg-slate-950/40 rounded-xl border border-slate-800/50 hover:bg-slate-950/60 transition-colors">
-                      {repoMetadata.languages && repoMetadata.languages.length > 0 ? (
-                        repoMetadata.languages.slice(0, 10).map((lang: string) => {
-                          const mapping: Record<string, string> = {
-                            'JavaScript': 'js', 'TypeScript': 'ts', 'Python': 'py',
-                            'HTML': 'html', 'CSS': 'css', 'Rust': 'rust', 'Go': 'go',
-                            'C++': 'cpp', 'Java': 'java', 'PHP': 'php', 'Ruby': 'ruby',
-                            'Shell': 'bash', 'Vue': 'vue', 'React': 'react', 'C': 'c', 'C#': 'cs'
-                          };
-                          const iconId = mapping[lang] || lang.toLowerCase().replace('#', 's').replace('++', 'pp');
+                  <div className="flex flex-col gap-2 pt-2">
+                    <div className="flex items-center gap-2 text-slate-500">
+                      <Package size={12} />
+                      <span className="text-[10px] font-bold uppercase tracking-tighter">Primary Languages:</span>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {repoMetadata.languages.slice(0, 5).map((lang) => {
+                        const iconMapping: Record<string, string> = {
+                          'JavaScript': 'js', 'TypeScript': 'ts', 'Python': 'py',
+                          'HTML': 'html', 'CSS': 'css', 'Rust': 'rust', 'Go': 'go',
+                          'C++': 'cpp', 'Java': 'java', 'PHP': 'php', 'Ruby': 'ruby',
+                          'Shell': 'bash', 'Vue': 'vue', 'React': 'react', 'C': 'c', 'C#': 'cs'
+                        };
+                        const iconId = iconMapping[lang];
+                        if (iconId) {
                           return (
-                            <img 
+                            <Image 
                               key={lang}
                               src={`https://skillicons.dev/icons?i=${iconId}`}
                               alt={lang}
                               title={lang}
-                              className="w-6 h-6 sm:w-8 sm:h-8 hover:scale-110 transition-transform cursor-help"
+                              width={24}
+                              height={24}
+                              className="w-6 h-6 hover:scale-110 transition-transform cursor-help"
                             />
                           );
-                        })
-                      ) : (
-                        <div className="flex items-center gap-2">
-                          <Code size={16} className="text-slate-500" />
-                          <span className="text-xs font-mono text-slate-400">Technology stack identified during scan</span>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex items-center justify-between p-3 bg-slate-950/40 rounded-lg border border-slate-800/50 hover:bg-slate-950/60 transition-colors">
-                      <div className="flex items-center gap-3">
-                        <div className="p-1.5 bg-purple-500/10 rounded">
-                          <Shield size={14} className="text-purple-500" />
-                        </div>
-                        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">License Type</span>
-                      </div>
-                      <span className="text-xs font-mono text-slate-200 truncate max-w-[140px]" title={repoMetadata.license}>
-                        {repoMetadata.license || 'Proprietary'}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between p-3 bg-slate-950/40 rounded-lg border border-slate-800/50 hover:bg-slate-950/60 transition-colors">
-                      <div className="flex items-center gap-3">
-                        <div className="p-1.5 bg-blue-500/10 rounded">
-                          <Package size={14} className="text-blue-500" />
-                        </div>
-                        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Storage Size</span>
-                      </div>
-                      <span className="text-xs font-mono text-slate-200">
-                        {repoMetadata.size ? `${(repoMetadata.size / 1024).toFixed(1)} MB` : 'N/A'}
-                      </span>
+                        }
+                        return (
+                          <span key={lang} className="text-[8px] font-bold px-1.5 py-0.5 bg-slate-800 rounded border border-white/5 text-slate-400">
+                            {lang}
+                          </span>
+                        );
+                      })}
                     </div>
                   </div>
-
-                  {repoMetadata.description && (
-                    <div className="p-4 bg-slate-950/30 border-l-2 border-emerald-500/30 rounded-r-lg italic">
-                      <p className="text-xs text-slate-400 leading-relaxed line-clamp-3">
-                        &quot;{repoMetadata.description}&quot;
-                      </p>
-                    </div>
-                  )}
 
                   <div className="flex items-center justify-between pt-2">
                     <div className="flex items-center gap-2 text-slate-500">
                       <Clock size={12} />
-                      <span className="text-[10px] font-bold uppercase tracking-tighter">Last Synchronized:</span>
+                      <span className="text-[10px] font-bold uppercase tracking-tighter">Last Update:</span>
                     </div>
                     <span className="text-[10px] font-mono text-slate-400">
-                      {new Date(repoMetadata.updated_at).toLocaleDateString(undefined, {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric'
-                      })}
+                      {new Date(repoMetadata.updated_at).toLocaleDateString()}
                     </span>
                   </div>
                 </div>
-              </div>
-            )}
-          </div>
-
-          <div className={`md:col-span-2 bg-slate-950 border border-slate-800 rounded-xl overflow-hidden flex flex-col ${isLogCollapsed ? 'h-auto md:h-[700px]' : 'h-[500px] md:h-[700px]'} shadow-inner transition-all duration-300`}>
-            <div className="bg-slate-900/80 border-b border-slate-800 p-4 flex items-center justify-between backdrop-blur-sm">
-              <div className="flex items-center gap-6">
-                <div className="flex items-center gap-2">
-                  <Terminal size={18} className="text-emerald-500" />
-                  <span className="font-mono text-sm font-bold tracking-widest text-slate-300">ANALYSIS LOG</span>
-                </div>
-                
-                {/* Integrated Status & Timer */}
-                <div className="hidden sm:flex items-center gap-4 pl-6 border-l border-slate-800">
-                  <div className="flex items-center gap-2">
-                    <div className={`w-1.5 h-1.5 rounded-full ${isScanning ? 'bg-blue-500 animate-pulse' : 'bg-emerald-500'} shadow-[0_0_8px_rgba(16,185,129,0.3)]`} />
-                    <span className="text-[10px] text-slate-500 font-bold tracking-widest uppercase">
-                      {isScanning ? 'SCAN ACTIVE' : 'ENGINE READY'}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 bg-slate-950/50 px-2 py-0.5 rounded border border-slate-800">
-                    <Timer size={10} className="text-slate-600" />
-                    <span className="text-[10px] text-slate-400 font-mono">
-                      {Math.floor(elapsedTime / 60).toString().padStart(2, '0')}:
-                      {(elapsedTime % 60).toString().padStart(2, '0')}s
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-center gap-4">
-                <button
-                  onClick={() => setIsLogCollapsed(!isLogCollapsed)}
-                  className="md:hidden flex items-center gap-1 text-[10px] font-bold text-slate-500 hover:text-emerald-400 uppercase tracking-tighter"
-                >
-                  {isLogCollapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
-                  <span>{isLogCollapsed ? 'Expand' : 'Collapse'}</span>
-                </button>
-                <button
-                  onClick={() => {
-                    const logText = logs.map(l => `[${l.timestamp}] ${l.message}`).join('\n');
-                    navigator.clipboard.writeText(logText);
-                    addLog('Logs copied to clipboard!', 'success');
-                  }}
-                  className="flex items-center gap-2 text-xs font-mono text-slate-500 hover:text-emerald-500 transition-colors group"
-                  title="Copy Logs"
-                >
-                  <Copy size={14} className="group-hover:scale-110 transition-transform" />
-                  <span className="hidden xs:inline">COPY</span>
-                </button>
               </div>
             </div>
+          )}
+        </div>
 
-            <div className={`flex-1 overflow-y-auto p-6 font-mono text-sm space-y-2 custom-scrollbar bg-slate-950/30 ${isLogCollapsed ? 'hidden md:block' : 'block'}`}>
-              {logs.map((log, idx) => (
-                <div key={log.id} className="flex gap-3">
-                  <span className="text-slate-500 shrink-0 select-none">[{log.timestamp}]</span>
-                  <span className={`
-                      ${log.type === 'success' ? 'text-emerald-400' : ''}
-                      ${log.type === 'warning' ? 'text-amber-400/90' : ''}
-                      ${log.type === 'error' ? 'text-rose-400' : ''}
-                      ${log.type === 'info' ? 'text-slate-400' : ''}
-                    `}>
-                    {log.message}
-                    {idx === logs.length - 1 && (
-                      <span className="inline-block w-1.5 h-4 bg-emerald-500 ml-1 animate-[pulse_1s_infinite] align-middle" />
-                    )}
-                  </span>
-                </div>
-              ))}
-              <div ref={logEndRef} />
+        {/* Console / Log Area */}
+        <div className="lg:col-span-2 flex flex-col h-[700px] bg-slate-950 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl">
+          <div className="bg-slate-900/80 border-b border-slate-800 p-4 flex items-center justify-between backdrop-blur-sm">
+            <div className="flex items-center gap-2">
+              <Terminal size={18} className="text-emerald-500" />
+              <span className="font-mono text-sm font-bold tracking-widest text-slate-300 uppercase">Analysis Terminal</span>
+            </div>
+            {isScanning && (
+              <div className="flex items-center gap-4 animate-pulse">
+                <div className="w-2 h-2 bg-emerald-500 rounded-full" />
+                <span className="text-[10px] font-mono text-emerald-500 font-bold uppercase tracking-widest">
+                  Processing... {elapsedTime}s
+                </span>
+              </div>
+            )}
+            <button 
+              onClick={() => setIsLogCollapsed(!isLogCollapsed)}
+              className="p-1 hover:bg-slate-800 rounded-md transition-colors text-slate-500"
+            >
+              {isLogCollapsed ? <ChevronDown size={18} /> : <ChevronUp size={18} />}
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-4 font-mono text-xs space-y-1 bg-[radial-gradient(circle_at_50%_50%,rgba(16,185,129,0.02),transparent)]">
+            {logs.map((log) => (
+              <div key={log.id} className="flex gap-3 py-0.5 group">
+                <span className="text-slate-700 shrink-0 select-none">[{log.timestamp}]</span>
+                <span className={`
+                  ${log.type === 'error' ? 'text-red-400' : ''}
+                  ${log.type === 'warning' ? 'text-amber-400' : ''}
+                  ${log.type === 'success' ? 'text-emerald-400' : ''}
+                  ${log.type === 'info' ? 'text-slate-400' : ''}
+                  ${log.type === 'boot' ? 'text-blue-400 italic font-bold' : ''}
+                  ${log.type === 'system' ? 'text-purple-400 font-bold' : ''}
+                  break-all
+                `}>
+                  {log.message}
+                </span>
+              </div>
+            ))}
+            <div ref={logEndRef} />
+          </div>
+
+          {/* Stats Bar */}
+          <div className="bg-slate-900 border-t border-slate-800 p-3 grid grid-cols-3 gap-4">
+            <div className="flex flex-col">
+              <span className="text-[8px] text-slate-500 font-bold uppercase tracking-widest">Files Discovered</span>
+              <span className="text-lg font-mono font-bold text-white">{totalFound}</span>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-[8px] text-slate-500 font-bold uppercase tracking-widest">Critical Risks</span>
+              <span className="text-lg font-mono font-bold text-red-500">
+                {findings.filter(f => f.severity === 'Critical').length}
+              </span>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-[8px] text-slate-500 font-bold uppercase tracking-widest">Total Findings</span>
+              <span className="text-lg font-mono font-bold text-emerald-500">{findings.length}</span>
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Result Matrix */}
-        {findings.length > 0 && (
-          <div className="mt-12 animate-in fade-in slide-in-from-bottom-4 duration-1000">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold flex items-center gap-2">
-                <AlertTriangle className="text-amber-500" />
-                SECURITY FINDINGS <span className="text-xs bg-slate-800 px-2 py-1 rounded text-slate-400 font-mono tracking-tighter">{findings.length} ISSUES DETECTED</span>
-              </h2>
+      {/* Findings Table */}
+      {findings.length > 0 && (
+        <div className="mt-12 animate-in slide-in-from-bottom-8 duration-700">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold text-white flex items-center gap-3">
+              <Shield className="text-emerald-500" /> Audit Findings Report
+            </h2>
+            <button 
+              onClick={() => {
+                const text = findings.map(f => `[${f.severity}] ${f.file}: ${f.description}`).join('\n');
+                navigator.clipboard.writeText(text);
+              }}
+              className="flex items-center gap-2 text-xs font-bold text-slate-400 hover:text-white transition-colors"
+            >
+              <Copy size={14} /> Copy Report
+            </button>
+          </div>
 
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] text-slate-500 font-mono hidden md:block uppercase tracking-wider">AI REMEDIATION PACKAGE:</span>
-                <div className="flex gap-1">
-                  <button
-                    onClick={() => exportResults('xml')}
-                    className="p-2 bg-slate-900 border border-slate-800 rounded hover:border-emerald-500/50 text-slate-400 hover:text-emerald-500 transition-all flex items-center gap-2 text-[10px] font-bold"
-                    title="Export XML"
-                  >
-                    <FileCode size={14} /> XML
-                  </button>
-                  <button
-                    onClick={() => exportResults('yaml')}
-                    className="p-2 bg-slate-900 border border-slate-800 rounded hover:border-emerald-500/50 text-slate-400 hover:text-emerald-500 transition-all flex items-center gap-2 text-[10px] font-bold"
-                    title="Export YAML"
-                  >
-                    <FileDown size={14} /> YAML
-                  </button>
-                  <button
-                    onClick={() => exportResults('markdown')}
-                    className="p-2 bg-slate-900 border border-slate-800 rounded hover:border-emerald-500/50 text-slate-400 hover:text-emerald-500 transition-all flex items-center gap-2 text-[10px] font-bold"
-                    title="Export Markdown"
-                  >
-                    <FileText size={14} /> MD
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {findings.map((finding, idx) => (
-                <div key={idx} className="group p-5 bg-slate-900/50 border border-slate-800 rounded-xl hover:border-emerald-500/50 transition-all duration-300 relative overflow-hidden shadow-lg shadow-black/20">
-                  {/* Category Accent */}
-                  <div className={`absolute top-0 right-0 w-24 h-24 -mr-12 -mt-12 opacity-5 rotate-45 
-                    ${finding.category === 'Logic' ? 'bg-blue-500' : 'bg-emerald-500'}`}
-                  />
-
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex flex-col gap-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] text-slate-500 font-mono tracking-widest uppercase">Target Module</span>
-                        <span className={`text-[8px] px-1.5 py-0.5 rounded border border-slate-700 font-bold uppercase tracking-tighter
-                          ${finding.category === 'Logic' ? 'text-blue-400 border-blue-500/30' : 'text-emerald-400 border-emerald-500/30'}`}>
-                          {finding.category || 'GENERAL'}
+          <div className="bg-slate-900/50 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl backdrop-blur-xl">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-slate-800 bg-slate-900/80">
+                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Severity</th>
+                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Source File</th>
+                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Finding Description</th>
+                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Remediation</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800">
+                {findings.map((f, i) => (
+                  <tr key={i} className="hover:bg-slate-800/30 transition-colors group">
+                    <td className="px-6 py-4">
+                      <span className={`
+                        px-2 py-1 rounded-md text-[9px] font-bold uppercase tracking-widest border
+                        ${f.severity === 'Critical' ? 'bg-red-500/10 text-red-500 border-red-500/20' : ''}
+                        ${f.severity === 'High' ? 'bg-orange-500/10 text-orange-500 border-orange-500/20' : ''}
+                        ${f.severity === 'Medium' ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' : ''}
+                        ${f.severity === 'Low' ? 'bg-blue-500/10 text-blue-500 border-blue-500/20' : ''}
+                        ${f.severity === 'Informational' ? 'bg-slate-500/10 text-slate-500 border-slate-500/20' : ''}
+                      `}>
+                        {f.severity}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex flex-col gap-1">
+                        <span className="text-xs font-mono text-slate-200 group-hover:text-emerald-400 transition-colors truncate max-w-[150px]" title={f.file}>
+                          {f.file.split('/').pop()}
+                        </span>
+                        <span className="text-[9px] text-slate-500 font-mono italic truncate max-w-[150px]">
+                          {f.file.split('/').slice(0, -1).join('/') || './'}
                         </span>
                       </div>
-                      <code className="text-xs text-emerald-400/90 truncate max-w-[250px] font-mono">{finding.file}</code>
-                    </div>
-                    <span className={`
-                      px-3 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase
-                      ${finding.severity === 'Critical' ? 'bg-rose-500/20 text-rose-500 border border-rose-500/50 shadow-[0_0_15px_rgba(244,63,94,0.2)]' : ''}
-                      ${finding.severity === 'High' ? 'bg-orange-500/20 text-orange-500 border border-orange-500/50' : ''}
-                      ${finding.severity === 'Medium' ? 'bg-amber-500/20 text-amber-500 border border-amber-500/50' : ''}
-                      ${finding.severity === 'Low' ? 'bg-blue-500/20 text-blue-500 border border-blue-500/50' : ''}
-                      ${finding.severity === 'Informational' ? 'bg-slate-500/20 text-slate-500 border border-slate-500/50' : ''}
-                    `}>
-                      {finding.severity}
-                    </span>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div>
-                      <h4 className="text-xs font-bold text-slate-400 mb-1 uppercase tracking-tighter">Diagnostic Output</h4>
-                      <p className="text-sm text-slate-300 leading-relaxed font-sans">{finding.description}</p>
-                    </div>
-
-                    <div className="p-3 bg-emerald-500/5 border border-emerald-500/20 rounded-lg group/rem relative">
-                      <h4 className="text-[10px] font-bold text-emerald-500/80 mb-1 uppercase tracking-tighter">Recommended Patch</h4>
-                      <p className="text-xs text-emerald-200/60 font-sans leading-relaxed">{finding.recommendation}</p>
-                      <button
-                        onClick={() => {
-                          navigator.clipboard.writeText(finding.recommendation);
-                          addLog(`Copied remediation for ${finding.file}`, 'success');
-                        }}
-                        className="absolute top-2 right-2 opacity-0 group-hover/rem:opacity-100 transition-opacity text-emerald-500 hover:scale-110"
-                        title="Copy Recommendation"
-                      >
-                        <Copy size={12} />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <p className="text-xs text-slate-400 leading-relaxed max-w-md">
+                        {f.description}
+                      </p>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2 text-[10px] text-emerald-500 font-bold bg-emerald-500/5 px-3 py-2 rounded-xl border border-emerald-500/10">
+                        <Zap size={12} /> {f.recommendation}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        )}
-      </div>
+        </div>
+      )}
+
+      {/* Empty State */}
+      {!isScanning && findings.length === 0 && (
+        <div className="mt-20 text-center space-y-4 opacity-40 grayscale reveal reveal-up">
+          <div className="inline-flex p-6 rounded-[32px] bg-slate-900 border border-slate-800">
+            <Shield size={64} className="text-slate-600" />
+          </div>
+          <div>
+            <h3 className="text-xl font-bold text-slate-300">No Target Acquired</h3>
+            <p className="text-sm text-slate-500">Initialize a scan to begin deep security analysis.</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

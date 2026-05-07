@@ -1,7 +1,6 @@
 import React from 'react';
-// Landing hero component with premium animations and responsive layout
 import Link from 'next/link';
-import { ShieldCheck, ChevronRight, Zap, Lock, Coffee, Book, ChevronDown } from 'lucide-react';
+import { ShieldCheck, ChevronRight, Zap, Lock, Book } from 'lucide-react';
 
 const GithubIcon = ({ size = 24, ...props }: { size?: number } & React.SVGProps<SVGSVGElement>) => (
   <svg

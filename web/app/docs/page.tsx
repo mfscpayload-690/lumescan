@@ -2,233 +2,179 @@
 
 import React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import {
-  Book, Code, Cpu, Shield, Zap,
+  Book, Cpu, Shield, Zap,
   Terminal, ArrowRight,
   ShieldCheck, AlertTriangle, Search
 } from 'lucide-react';
-
-const Github = ({ size = 24, ...props }: { size?: number } & React.SVGProps<SVGSVGElement>) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    {...props}
-  >
-    <path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.26 1.23-.26 1.86v4" />
-    <path d="M9 18c-4.51 2-5-2-7-2" />
-  </svg>
-);
+import { Navbar } from '@/landing/Navbar';
+import { Footer } from '@/landing/Footer';
+import { useReveal } from '@/hooks/useReveal';
 
 const DocsPage = () => {
+  useReveal();
+
+  const sections = [
+    {
+      title: "Quick Start",
+      icon: Zap,
+      content: "Simply paste a public GitHub repository URL into the scanner. LumeScan automatically identifies the tech stack and begins a prioritized security audit.",
+      color: "text-amber-500",
+      bg: "bg-amber-500/10"
+    },
+    {
+      title: "Core Engines",
+      icon: Cpu,
+      content: "Our system leverages the Groq LPU™ Inference Engine for real-time static analysis, enabling us to scan thousands of lines of code in seconds.",
+      color: "text-blue-500",
+      bg: "bg-blue-500/10"
+    },
+    {
+      title: "Security Taxonomy",
+      icon: Shield,
+      content: "Findings are categorized into Critical, High, Medium, and Low severities, covering Logic, Config, Workflow, and Secrets vulnerabilities.",
+      color: "text-emerald-500",
+      bg: "bg-emerald-500/10"
+    },
+    {
+      title: "API Reference",
+      icon: Terminal,
+      content: "LumeScan provides a robust REST API for integrating security scans directly into your CI/CD pipelines and developer workflows.",
+      color: "text-purple-500",
+      bg: "bg-purple-500/10"
+    }
+  ];
+
   return (
-    <div className="min-h-screen bg-[#0c0c0e] text-white selection:bg-emerald-500/30">
-      {/* Background Decor */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-emerald-500/5 blur-[120px] rounded-full" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-500/5 blur-[120px] rounded-full" />
-      </div>
+    <div className="bg-slate-950 min-h-screen text-slate-200 selection:bg-emerald-500/30 overflow-x-hidden">
+      <Navbar />
 
-      {/* Header */}
-      <header className="sticky top-0 z-50 border-b border-white/5 bg-[#0c0c0e]/80 backdrop-blur-xl">
+      <main className="pt-32 pb-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <Link href="/welcome" className="flex items-center gap-2 group">
-              <img src="/lumescan-logo.png" alt="Logo" className="w-8 h-8 rounded-lg group-hover:scale-110 transition-transform" />
-              <span className="font-bold tracking-tighter text-xl">LUME<span className="text-emerald-500">SCAN</span></span>
-              <span className="ml-2 px-2 py-0.5 bg-zinc-800 text-zinc-400 text-[10px] rounded uppercase font-bold tracking-widest">Docs v1.0</span>
-            </Link>
-
-            <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-zinc-400">
-              <a href="#introduction" className="hover:text-white transition-colors">Introduction</a>
-              <a href="#api" className="hover:text-white transition-colors">API Reference</a>
-              <a href="#deep-linking" className="hover:text-white transition-colors">Deep Linking</a>
-              <Link href="/" className="px-4 py-2 bg-emerald-500 text-black rounded-lg font-bold hover:bg-emerald-400 transition-all">
-                Launch App
-              </Link>
-            </nav>
+          <div className="max-w-3xl reveal reveal-up">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-[10px] font-bold uppercase tracking-widest mb-6">
+              Documentation
+            </div>
+            <h1 className="text-5xl lg:text-7xl font-extrabold text-white tracking-tight mb-8">
+              Securing the <span className="text-gradient">Future</span>
+            </h1>
+            <p className="text-xl text-slate-400 leading-relaxed">
+              LumeScan is a next-generation security orchestration platform designed to automate the discovery of vulnerabilities in modern software ecosystems.
+            </p>
           </div>
-        </div>
-      </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-24">
-        <div className="grid lg:grid-cols-4 gap-12">
-          {/* Sidebar Navigation */}
-          <aside className="hidden lg:block space-y-8 sticky top-32 h-fit">
-            <div>
-              <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-4">Getting Started</h3>
-              <ul className="space-y-3 text-sm text-zinc-400">
-                <li><a href="#introduction" className="hover:text-emerald-400 transition-colors flex items-center gap-2"><Book size={14} /> Introduction</a></li>
-                <li><a href="#architecture" className="hover:text-emerald-400 transition-colors flex items-center gap-2"><Cpu size={14} /> Architecture</a></li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-4">API Reference</h3>
-              <ul className="space-y-3 text-sm text-zinc-400">
-                <li><a href="#auth" className="hover:text-emerald-400 transition-colors flex items-center gap-2"><Shield size={14} /> Authentication</a></li>
-                <li><a href="#endpoints" className="hover:text-emerald-400 transition-colors flex items-center gap-2"><Terminal size={14} /> Endpoints</a></li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-4">Features</h3>
-              <ul className="space-y-3 text-sm text-zinc-400">
-                <li><a href="#deep-linking" className="hover:text-emerald-400 transition-colors flex items-center gap-2"><Zap size={14} /> Deep Linking</a></li>
-                <li><a href="#classification" className="hover:text-emerald-400 transition-colors flex items-center gap-2"><Search size={14} /> File Classification</a></li>
-              </ul>
-            </div>
-          </aside>
-
-          {/* Content */}
-          <div className="lg:col-span-3 space-y-24">
-            {/* Introduction */}
-            <section id="introduction" className="space-y-6">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-[10px] font-bold uppercase tracking-widest">
-                Overview
-              </div>
-              <h2 className="text-4xl font-bold tracking-tight">Introduction</h2>
-              <p className="text-xl text-zinc-400 leading-relaxed">
-                LumeScan is a professional-grade security auditing workstation designed to identify vulnerabilities in GitHub repositories using advanced AI analysis. It streamlines the audit process by classifying files, identifying high-risk areas, and providing actionable remediation plans.
-              </p>
-              <div className="grid sm:grid-cols-2 gap-4 pt-4">
-                <div className="p-6 bg-zinc-900/50 border border-zinc-800 rounded-2xl">
-                  <ShieldCheck className="text-emerald-500 mb-4" size={32} />
-                  <h4 className="font-bold mb-2">Security First</h4>
-                  <p className="text-sm text-zinc-500">Built with a focus on detecting logic flaws, sensitive data leaks, and configuration errors.</p>
+          <div className="grid md:grid-cols-2 gap-8 mt-20">
+            {sections.map((section, idx) => (
+              <div key={idx} className="group p-8 bg-slate-900/30 border border-white/5 rounded-3xl hover:border-emerald-500/30 transition-all reveal reveal-up" style={{ animationDelay: `${idx * 100}ms` }}>
+                <div className={`p-4 w-fit rounded-2xl ${section.bg} ${section.color} mb-6 group-hover:scale-110 transition-transform`}>
+                  <section.icon size={32} />
                 </div>
-                <div className="p-6 bg-zinc-900/50 border border-zinc-800 rounded-2xl">
-                  <Zap className="text-blue-500 mb-4" size={32} />
-                  <h4 className="font-bold mb-2">Real-time Analysis</h4>
-                  <p className="text-sm text-zinc-500">Streaming analysis results via NDJSON for immediate feedback and responsiveness.</p>
-                </div>
+                <h3 className="text-2xl font-bold text-white mb-4">{section.title}</h3>
+                <p className="text-slate-400 leading-relaxed mb-6">
+                  {section.content}
+                </p>
+                <Link href="#" className="inline-flex items-center gap-2 text-emerald-500 font-bold group-hover:gap-3 transition-all">
+                  Read more <ArrowRight size={16} />
+                </Link>
               </div>
-            </section>
+            ))}
+          </div>
 
-            {/* Architecture */}
-            <section id="architecture" className="space-y-6">
-              <h2 className="text-3xl font-bold tracking-tight">System Architecture</h2>
-              <p className="text-zinc-400 leading-relaxed">
-                The platform is split into a Next.js 15+ workstation frontend and a high-performance FastAPI backend.
-              </p>
-              <div className="p-8 bg-black border border-zinc-800 rounded-2xl font-mono text-xs overflow-x-auto">
-                <div className="flex flex-col gap-4">
-                  <div className="flex items-center gap-4">
-                    <div className="px-4 py-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-500 rounded">Workstation (Next.js)</div>
-                    <ArrowRight className="text-zinc-700" />
-                    <div className="px-4 py-2 bg-blue-500/10 border border-blue-500/30 text-blue-500 rounded">LumeScan API (FastAPI)</div>
-                    <ArrowRight className="text-zinc-700" />
-                    <div className="px-4 py-2 bg-amber-500/10 border border-amber-500/30 text-amber-500 rounded">Groq / AI Core</div>
-                  </div>
-                  <div className="text-zinc-600 pl-4 border-l border-zinc-800 ml-20 space-y-2 py-4">
-                    <div>1. Frontend initiates scan with repo URL</div>
-                    <div>2. API fetches repo tree and classifies targets</div>
-                    <div>3. API streams file-by-file AI security analysis</div>
-                    <div>4. Frontend renders findings in real-time matrix</div>
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            {/* API Reference */}
-            <section id="api" className="space-y-12">
+          {/* Detailed Guide Section */}
+          <div className="mt-32 space-y-24">
+            <div className="grid lg:grid-cols-2 gap-16 items-center reveal reveal-up">
               <div className="space-y-6">
-                <h2 className="text-3xl font-bold tracking-tight">API Reference</h2>
-                <div id="auth" className="p-6 bg-zinc-900/30 border border-zinc-800 rounded-xl space-y-4">
-                  <div className="flex items-center gap-2 text-zinc-300 font-bold">
-                    <Shield size={18} className="text-purple-500" />
-                    Authentication
-                  </div>
-                  <p className="text-sm text-zinc-500">
-                    Currently, the LumeScan Public API is in open preview. No authentication is required for basic repository scanning. Rate limits apply based on IP address to ensure system stability.
-                  </p>
+                <h2 className="text-3xl font-bold text-white flex items-center gap-3">
+                  <Search className="text-emerald-500" />
+                  Intelligent Discovery
+                </h2>
+                <p className="text-lg text-slate-400 leading-relaxed">
+                  LumeScan doesn&apos;t just look for patterns; it understands context. Our discovery engine recursively traverses your repository tree, 
+                  classifying files based on their role in the application architecture.
+                </p>
+                <ul className="space-y-4">
+                  {[
+                    "Automatic tech-stack identification",
+                    "Recursive tree traversal",
+                    "File-type classification (Logic, Config, etc.)",
+                    "Smart pagination for massive repos"
+                  ].map((item, i) => (
+                    <li key={i} className="flex items-center gap-3 text-slate-300">
+                      <div className="w-5 h-5 rounded-full bg-emerald-500/10 flex items-center justify-center">
+                        <ShieldCheck size={12} className="text-emerald-500" />
+                      </div>
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 relative overflow-hidden group">
+                <div className="absolute inset-0 bg-emerald-500/5 blur-[80px] group-hover:bg-emerald-500/10 transition-colors" />
+                <div className="relative z-10 font-mono text-sm space-y-2 text-emerald-500/70">
+                  <div className="text-slate-500">// Discovery Sequence</div>
+                  <div>$ lumescan init https://github.com/example/repo</div>
+                  <div className="text-white">Analyzing tree structure...</div>
+                  <div className="text-white">Detected: React, Node.js, Docker</div>
+                  <div className="text-white">Files indexed: 1,248</div>
+                  <div className="text-white">Priority: 12 Logic, 4 Config</div>
                 </div>
               </div>
+            </div>
 
-              <div id="endpoints" className="space-y-12">
-                {/* Search */}
-                <div className="space-y-4">
-                  <div className="flex items-center gap-4">
-                    <span className="px-2 py-1 bg-blue-500 text-[10px] font-bold rounded">GET</span>
-                    <code className="text-emerald-400 font-mono text-sm">/api/v1/search/repos</code>
+            <div className="grid lg:grid-cols-2 gap-16 items-center reveal reveal-up">
+              <div className="order-2 lg:order-1 bg-slate-900 border border-slate-800 rounded-3xl p-8 relative overflow-hidden group">
+                <div className="absolute inset-0 bg-red-500/5 blur-[80px] group-hover:bg-red-500/10 transition-colors" />
+                <div className="relative z-10 space-y-4">
+                  <div className="flex items-center justify-between border-b border-white/5 pb-4">
+                    <span className="text-red-500 font-bold flex items-center gap-2">
+                      <AlertTriangle size={16} /> CRITICAL
+                    </span>
+                    <span className="text-slate-500 text-xs">Findings ID: LS-902</span>
                   </div>
-                  <p className="text-sm text-zinc-400">Search for GitHub repositories with auto-completion data.</p>
-                  <div className="bg-zinc-900/50 p-4 rounded-lg font-mono text-xs text-zinc-500">
-                    Query Params: <span className="text-zinc-300">q (string)</span> - Min 2 chars.
-                  </div>
-                </div>
-
-                {/* Init */}
-                <div className="space-y-4">
-                  <div className="flex items-center gap-4">
-                    <span className="px-2 py-1 bg-emerald-500 text-black text-[10px] font-bold rounded">POST</span>
-                    <code className="text-emerald-400 font-mono text-sm">/api/v1/scan/init</code>
-                  </div>
-                  <p className="text-sm text-zinc-400">Initializes the scan and returns classified file tree metadata.</p>
-                  <div className="grid md:grid-cols-2 gap-4">
-                    <div className="bg-black/50 p-4 rounded-lg border border-zinc-800">
-                      <div className="text-[10px] font-bold text-zinc-600 mb-2 uppercase">Request Body</div>
-                      <pre className="text-xs text-zinc-300">{"{\n  \"repo_url\": \"owner/repo\",\n  \"offset\": 0\n}"}</pre>
-                    </div>
-                    <div className="bg-black/50 p-4 rounded-lg border border-zinc-800">
-                      <div className="text-[10px] font-bold text-zinc-600 mb-2 uppercase">Response Highlights</div>
-                      <pre className="text-xs text-emerald-500/80">{"{\n  \"files_found\": [...],\n  \"metadata\": {...},\n  \"total_found\": 124\n}"}</pre>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Analyze */}
-                <div className="space-y-4">
-                  <div className="flex items-center gap-4">
-                    <span className="px-2 py-1 bg-emerald-500 text-black text-[10px] font-bold rounded">POST</span>
-                    <code className="text-emerald-400 font-mono text-sm">/api/v1/scan/analyze</code>
-                  </div>
-                  <p className="text-sm text-zinc-400">Streams NDJSON analysis results for specific files.</p>
-                  <div className="p-4 bg-amber-500/5 border border-amber-500/20 rounded-lg flex items-start gap-3">
-                    <AlertTriangle size={18} className="text-amber-500 shrink-0" />
-                    <p className="text-xs text-amber-200/60 leading-relaxed">
-                      <strong>Note:</strong> This endpoint uses HTTP Streaming. Results are yielded as they are generated by the AI core. Expect roughly 1.5s delay between file chunks for safety.
-                    </p>
-                  </div>
+                  <div className="text-white font-bold">Unencrypted Secret in main.py</div>
+                  <div className="text-slate-400 text-sm italic">&quot;Hardcoded AWS_SECRET_KEY found at line 42...&quot;</div>
                 </div>
               </div>
-            </section>
-
-            {/* Deep Linking */}
-            <section id="deep-linking" className="space-y-6">
-              <h2 className="text-3xl font-bold tracking-tight">Deep Linking</h2>
-              <p className="text-zinc-400 leading-relaxed">
-                LumeScan supports browser-based deep linking for seamless integration into your security workflow. You can trigger a scan automatically by navigating to a specific URL structure.
-              </p>
-              <div className="p-6 bg-zinc-900 border border-zinc-800 rounded-2xl space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-zinc-500">FORMAT</span>
-                  <span className="text-[10px] text-emerald-500 font-mono font-bold">AVAILABLE NOW</span>
-                </div>
-                <div className="bg-black p-4 rounded-xl border border-zinc-800 flex items-center justify-between group">
-                  <code className="text-emerald-400 text-sm">lumescan.vercel.app/<span className="text-white">owner</span>/<span className="text-white">repo</span></code>
-                  <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2 text-[10px] text-zinc-500 font-bold">
-                    EXAMPLE: lumescan.vercel.app/nextjs/next.js
+              <div className="order-1 lg:order-2 space-y-6">
+                <h2 className="text-3xl font-bold text-white flex items-center gap-3">
+                  <ShieldCheck className="text-red-500" />
+                  Real-time Auditing
+                </h2>
+                <p className="text-lg text-slate-400 leading-relaxed">
+                  Once files are identified, the LPU-powered audit engine begins a multi-pass analysis. We look for deep logic flaws that 
+                  traditional regex-based scanners miss.
+                </p>
+                <div className="grid grid-cols-2 gap-4 pt-4">
+                  <div className="p-4 bg-slate-900 border border-slate-800 rounded-2xl">
+                    <div className="text-2xl font-bold text-white">50ms</div>
+                    <div className="text-xs text-slate-500 uppercase tracking-widest font-bold">Avg Inference Time</div>
+                  </div>
+                  <div className="p-4 bg-slate-900 border border-slate-800 rounded-2xl">
+                    <div className="text-2xl font-bold text-white">99%</div>
+                    <div className="text-xs text-slate-500 uppercase tracking-widest font-bold">Accuracy Rate</div>
                   </div>
                 </div>
               </div>
-            </section>
+            </div>
+          </div>
+
+          {/* Footer Call to Action */}
+          <div className="mt-40 text-center reveal reveal-up">
+            <h2 className="text-4xl font-bold text-white mb-6">Ready to secure your repo?</h2>
+            <div className="flex justify-center gap-6">
+              <Link href="/dashboard" className="px-8 py-4 bg-emerald-500 text-slate-950 rounded-2xl hover:bg-emerald-400 transition-all font-bold shadow-2xl shadow-emerald-500/20">
+                Start Free Scan
+              </Link>
+              <Link href="https://github.com/mfscpayload-690/lumescan" className="px-8 py-4 bg-slate-800 text-white rounded-2xl hover:bg-slate-700 transition-all font-bold border border-white/5">
+                View on GitHub
+              </a>
+            </div>
           </div>
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-white/5 py-12 bg-black/30">
-        <div className="max-w-7xl mx-auto px-4 text-center">
-          <p className="text-sm text-zinc-600">
-            &copy; {new Date().getFullYear()} LumeScan Professional. Built for security researchers.
-          </p>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 };

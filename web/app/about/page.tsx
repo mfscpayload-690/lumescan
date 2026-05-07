@@ -5,7 +5,6 @@ import { Navbar } from '@/landing/Navbar';
 import { Footer } from '@/landing/Footer';
 import { Shield, ExternalLink, Code, Server, Cpu, Terminal, Mail, Users, Heart } from 'lucide-react';
 import { useReveal } from '@/hooks/useReveal';
-import Link from 'next/link';
 
 const GithubIcon = ({ size = 24, ...props }: { size?: number } & React.SVGProps<SVGSVGElement>) => (
   <svg

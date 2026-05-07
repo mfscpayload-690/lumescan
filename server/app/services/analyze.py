@@ -1,17 +1,13 @@
-from groq import Groq
-import httpx
-import json
 import asyncio
+import json
+
+import httpx
+from groq import Groq
+
 from app.core.config import settings
 
 class AnalyzeService:
     def __init__(self):
-        # Groq Configuration (Primary Engine)
-        """
-        Initialize the AnalyzeService instance by configuring the Groq client for the primary engine when a GROQ API key is available.
-        
-        If `settings.GROQ_API_KEY` is set, `self.groq_client` is initialized with `Groq(api_key=...)`; otherwise `self.groq_client` is set to `None`.
-        """
         if settings.GROQ_API_KEY:
             self.groq_client = Groq(api_key=settings.GROQ_API_KEY)
         else:
@@ -19,127 +15,78 @@ class AnalyzeService:
 
     async def get_file_content(self, owner: str, repo: str, path: str) -> str:
         """
-        Retrieve raw file contents from a GitHub repository, trying the `main` branch and falling back to `master`.
-        
-        Parameters:
-            owner (str): Repository owner or organization.
-            repo (str): Repository name.
-            path (str): Path to the file within the repository.
-        
-        Returns:
-            str: The file contents when a successful (HTTP 200) response is received; an empty string if the file is not found or on any error.
+        Retrieve raw file contents from a GitHub repository.
         """
-        url = f"https://raw.githubusercontent.com/{owner}/{repo}/main/{path}"
+        urls = [
+            f"https://raw.githubusercontent.com/{owner}/{repo}/main/{path}",
+            f"https://raw.githubusercontent.com/{owner}/{repo}/master/{path}"
+        ]
+        
         async with httpx.AsyncClient() as client:
-            try:
-                response = await client.get(url)
-                if response.status_code == 404:
-                    url = f"https://raw.githubusercontent.com/{owner}/{repo}/master/{path}"
+            for url in urls:
+                try:
                     response = await client.get(url)
-                
-                if response.status_code == 200:
-                    return response.text
-            except Exception:
-                pass
-            return ""
+                    if response.status_code == 200:
+                        return response.text
+                except Exception:
+                    continue
+        return ""
 
-    def _get_prompt(self, owner, repo, path, content, category):
+    def _generate_prompt(self, owner: str, repo: str, path: str, content: str, category: str) -> str:
         """
-        Constructs the Groq audit prompt for a DEEP LOGIC security analysis of a repository file.
-        
-        This prompt instructs the model to perform a focused security audit and to return a single valid JSON object describing findings. The `category` parameter adjusts the audit focus (e.g., logic, config, workflow, secrets); otherwise a general security and dependency audit is requested. The generated prompt embeds the repository context and file content and enforces the JSON output schema and severity taxonomy.
-        
-        Parameters:
-            owner (str): GitHub repository owner or organization.
-            repo (str): Repository name.
-            path (str): Path to the file within the repository.
-            content (str): Raw file content to be analyzed (included verbatim in the prompt).
-            category (str): Audit category that tailors the focus. Common values:
-                - "Logic": Broken access control, BOLA, injection, unsafe operations.
-                - "Config": Insecure CORS, exposed debug modes, weak crypto.
-                - "Workflow": Plain-text secret exposure in CI/CD, unpinned third-party actions.
-                - "Secrets": Actual credentials/API keys or dangerous .env.example misconfigurations.
-                - Any other value triggers a general security hygiene and dependency audit.
-        
-        Returns:
-            str: A formatted instruction prompt suitable for sending to the Groq chat completion API.
+        Generates a security audit prompt for the AI.
         """
+        focus = "general security hygiene and dependency audit."
+        if category == "Logic":
+            focus = "BOLA, SQL/NoSQL Injection, and Unsafe Operations."
+        elif category == "Config":
+            focus = "Insecure CORS, exposed debug modes, and weak crypto."
+        elif category == "Workflow":
+            focus = "Secret exposure in CI/CD and unpinned 3rd party actions."
+        elif category == "Secrets":
+            focus = "credentials or dangerous misconfigurations."
+
         return f"""
-        You are a Senior Security Auditor performing a DEEP LOGIC audit on a {category} file: '{path}'.
-        Repository Context: {owner}/{repo}
-
-        AUDIT FOCUS (OWASP & Framework Specific):
-        {
-            "- LOGIC AUDIT: Search for Broken Access Control, BOLA (Object level auth), SQL/NoSQL Injection, and Unsafe Operations." if category == "Logic" else
-            "- CONFIG AUDIT: Search for Insecure CORS (allow_origins=['*']), exposed debug modes, and weak crypto." if category == "Config" else
-            "- WORKFLOW AUDIT: Search for plain-text secret exposure in CI/CD and unpinned 3rd party actions." if category == "Workflow" else
-            "- SECRETS AUDIT: Search for actual API keys, credentials, or dangerous misconfigurations in .env.example." if category == "Secrets" else
-            "Perform a general security hygiene and dependency audit."
-        }
-
-        FILE CONTENT:
-        ---
+        Audit the following {category} file: '{path}' in {owner}/{repo}.
+        Focus: {focus}
+        
+        File Content:
         {content}
-        ---
-
-        Output Requirements:
-        1. Return ONLY a valid JSON object.
-        2. Identify specific lines or logic blocks that are problematic.
-        3. Assign severity: Critical, High, Medium, Low, Informational.
-
-        JSON FORMAT:
-        {{
-            "file": "{path}",
-            "findings": [
-                {{
-                    "type": "Vulnerability|Compliance|BestPractice",
-                    "severity": "Critical|High|Medium|Low|Informational",
-                    "description": "Short, technical description of the flaw.",
-                    "recommendation": "Step-by-step remediation advice."
-                }}
-            ]
-        }}
+        
+        Output valid JSON with "findings" array (file, line, message, severity, title).
         """
 
     async def analyze_file(self, owner: str, repo: str, path: str, category: str = "General") -> dict:
         """
-        Performs a security-focused analysis of a repository file and returns the parsed analysis result.
-        
-        Parameters:
-            owner (str): GitHub repository owner.
-            repo (str): GitHub repository name.
-            path (str): Path to the file within the repository.
-            category (str): Analysis category to tailor the audit (e.g., "Logic", "Config", "Workflow", "Secrets", or "General").
-        
-        Returns:
-            dict: On success, a parsed JSON object containing at least `file` and a `findings` array with analysis entries; on failure, a dictionary `{"error": "<message>", "file": "<path>"}` describing the problem.
+        Performs a security-focused analysis of a repository file.
         """
+        if not self.groq_client:
+            return {"file": path, "error": "Groq client not configured"}
+
         content = await self.get_file_content(owner, repo, path)
         if not content:
-            return {"error": f"Could not fetch content for {path}", "file": path}
+            return {"file": path, "error": "Could not fetch file content"}
 
-        prompt = self._get_prompt(owner, repo, path, content, category)
-
-        if not self.groq_client:
-            return {"error": "Groq API key not configured", "file": path}
-
+        prompt = self._generate_prompt(owner, repo, path, content, category)
+        
         try:
-            # Groq high-speed analysis
-            response = await asyncio.to_thread(
-                self.groq_client.chat.completions.create,
-                messages=[
-                    {"role": "system", "content": "You are a specialized security auditor JSON output machine."},
-                    {"role": "user", "content": prompt}
-                ],
-                model="llama-3.3-70b-versatile",
-                response_format={"type": "json_object"}
+            loop = asyncio.get_event_loop()
+            chat_completion = await loop.run_in_executor(
+                None,
+                lambda: self.groq_client.chat.completions.create(
+                    messages=[
+                        {"role": "system", "content": "You are a security auditor JSON machine."},
+                        {"role": "user", "content": prompt}
+                    ],
+                    model="llama-3.3-70b-versatile",
+                    response_format={"type": "json_object"},
+                )
             )
-            result = json.loads(response.choices[0].message.content)
-            # Ensure AI doesn't override critical metadata (Hallucination Shield)
+            
+            result = json.loads(chat_completion.choices[0].message.content)
             result["file"] = path
-            result["category"] = category
             return result
         except Exception as e:
-            return {"error": f"Groq Analysis failed: {str(e)}", "file": path}
+            return {"file": path, "error": str(e)}
 
 analyze_service = AnalyzeService()
