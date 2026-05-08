@@ -10,7 +10,8 @@ import {
   Search,
   History as HistoryIcon,
   RotateCcw,
-  CheckCircle2
+  CheckCircle2,
+  Loader2
 } from 'lucide-react';
 import { useAuditCache, AuditSession } from '@/hooks/useAuditCache';
 
@@ -96,6 +97,7 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
   const [repoUrl, setRepoUrl] = useState(initialRepo || '');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [isSearchingRepos, setIsSearchingRepos] = useState(false);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [findings, setFindings] = useState<Finding[]>([]);
   const [isScanning, setIsScanning] = useState(false);
@@ -195,21 +197,26 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
   useEffect(() => {
     const delayDebounceFn = setTimeout(async () => {
       if (repoUrl && repoUrl.length >= 2 && !repoUrl.startsWith('http')) {
+        setIsSearchingRepos(true);
+        setShowDropdown(true);
         try {
           const apiBase = process.env.NEXT_PUBLIC_API_BASE || 'http://127.0.0.1:8000';
           const res = await fetch(`${apiBase}/api/v1/search/repos?q=${encodeURIComponent(repoUrl)}`);
           if (!res.ok) throw new Error('Search failed');
           const data = await res.json();
           setSearchResults(data.items || []);
-          setShowDropdown(data.items?.length > 0);
+          setShowDropdown(data.items?.length > 0 || isSearchingRepos);
         } catch (error) {
           console.error("Search failed:", error);
           setSearchResults([]);
           setShowDropdown(false);
+        } finally {
+          setIsSearchingRepos(false);
         }
       } else {
         setSearchResults([]);
         setShowDropdown(false);
+        setIsSearchingRepos(false);
       }
     }, 500);
 
@@ -541,8 +548,14 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
                   </div>
 
                   {/* Results Dropdown */}
-                  {showDropdown && searchResults.length > 0 && (
+                  {showDropdown && (isSearchingRepos || searchResults.length > 0) && (
                     <div className="absolute z-50 w-full mt-2 bg-slate-900 border border-slate-800 rounded-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+                      {isSearchingRepos && (
+                        <div className="p-4 flex items-center justify-center gap-2 text-slate-400 border-b border-slate-800/50">
+                          <Loader2 className="w-3 h-3 animate-spin text-emerald-500" />
+                          <span className="text-[10px] font-bold uppercase tracking-widest opacity-70">Searching Repositories...</span>
+                        </div>
+                      )}
                       {searchResults.map((result, idx) => (
                         <button
                           key={idx}
@@ -551,11 +564,11 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
                             setRepoUrl(result.full_name);
                             setShowDropdown(false);
                           }}
-                          className="w-full text-left px-4 py-3 hover:bg-slate-800 border-b border-slate-800 last:border-0 transition-colors"
+                          className="w-full px-4 py-3 text-left hover:bg-slate-800 border-b border-slate-800/50 last:border-0 transition-colors group/item"
                         >
-                          <div className="text-sm font-bold text-emerald-400">{result.full_name}</div>
+                          <div className="text-sm font-bold text-emerald-500 group-hover/item:text-emerald-400 truncate">{result.full_name}</div>
                           {result.description && (
-                            <div className="text-[10px] text-slate-500 truncate">{result.description}</div>
+                            <div className="text-[10px] text-slate-500 line-clamp-1 mt-0.5">{result.description}</div>
                           )}
                         </button>
                       ))}
