@@ -34,4 +34,5 @@ jobs:
           # Add everything and push - this has ZERO history of the binary files
           git add .
           git commit -m "deploy: fresh backend build"
-          git push -f https://mfscpayload-690:$HF_TOKEN@huggingface.co/spaces/mfscpayload-690/lumescan-api main
+          git config --global credential.helper '!f() { echo username=mfscpayload-690; echo password=$HF_TOKEN; }; f'
+          git push -f https://huggingface.co/spaces/mfscpayload-690/lumescan-api main
