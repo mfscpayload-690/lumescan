@@ -197,12 +197,22 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
   // Progressive Search Logic
   useEffect(() => {
     const delayDebounceFn = setTimeout(async () => {
-      if (repoUrl && repoUrl.length >= 2 && !repoUrl.startsWith('http')) {
+      let searchQuery = repoUrl.trim();
+      
+      // Auto-extract path if it's a full URL
+      const githubUrlRegex = /(https?:\/\/)?github.com\/([^/]+)\/([^/?]+)(\/[^$]+)?/;
+      const match = searchQuery.match(githubUrlRegex);
+      if (match && match[2] && match[3]) {
+        searchQuery = `${match[2]}/${match[3]}`;
+        setRepoUrl(searchQuery); // Update search bar UI immediately
+      }
+
+      if (searchQuery && searchQuery.length >= 2 && !searchQuery.startsWith('http')) {
         setIsSearchingRepos(true);
         setShowDropdown(true);
         try {
           const apiBase = process.env.NEXT_PUBLIC_API_BASE || 'http://127.0.0.1:8000';
-          const res = await fetch(`${apiBase}/api/v1/search/repos?q=${encodeURIComponent(repoUrl)}`);
+          const res = await fetch(`${apiBase}/api/v1/search/repos?q=${encodeURIComponent(searchQuery)}`);
           if (!res.ok) throw new Error('Search failed');
           const data = await res.json();
           setSearchResults(data.items || []);
@@ -261,13 +271,23 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
     e.preventDefault();
     if (isScanning) return;
 
-    const trimmedRepo = repoUrl.trim();
-    if (!trimmedRepo) {
+    let targetRepo = repoUrl.trim();
+    
+    // Auto-extract owner/repo if a full GitHub URL is pasted
+    const githubUrlRegex = /(https?:\/\/)?github.com\/([^/]+)\/([^/?]+)(\/[^$]+)?/;
+    const match = targetRepo.match(githubUrlRegex);
+    
+    if (match && match[2] && match[3]) {
+      targetRepo = `${match[2]}/${match[3]}`;
+      setRepoUrl(targetRepo); // Update UI to show clean path
+    }
+
+    if (!targetRepo) {
       addLog('Validation Error: Repository path cannot be empty.', 'error');
       return;
     }
 
-    executeScan(0);
+    executeScan(0, targetRepo);
     inputRef.current?.blur();
   };
 
@@ -277,6 +297,11 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
     const signal = abortControllerRef.current.signal;
 
     if (currentOffset === 0) {
+      // Sync URL with browser address bar
+      if (typeof window !== 'undefined') {
+        window.history.pushState(null, '', `/${targetRepo}`);
+      }
+
       // Only clear if it's a different repo or we are starting fresh
       if (targetRepo !== repoUrl || scanStatus === 'completed' || scanStatus === 'idle') {
         setFindings([]);
