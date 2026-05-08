@@ -5,7 +5,7 @@ import Link from 'next/link';
 import {
   Terminal, ShieldCheck, Zap, AlertTriangle, Copy, Download,
   FileDown, FileCode, FileText, Square, Play, Star, GitFork,
-  Clock, Shield, Code, Cpu, Globe, Activity, Timer,
+  Clock, Shield, Code, Globe, Activity, Timer,
   ChevronDown, ChevronUp, Eye, Package, Unlock, Lock, AlertCircle,
   Search,
   History as HistoryIcon,
@@ -113,6 +113,7 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
   const [scanStatus, setScanStatus] = useState<'idle' | 'scanning' | 'completed' | 'partial'>('idle');
   const { saveToHistory, saveActiveSession, getActiveSession, clearActiveSession } = useAuditCache();
   const scanIdRef = useRef<string>(Math.random().toString(36).substring(7));
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const addLog = (message: string, type: LogEntry['type'] = 'info') => {
     const newLog: LogEntry = {
@@ -267,6 +268,7 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
     }
 
     executeScan(0);
+    inputRef.current?.blur();
   };
 
   const executeScan = async (currentOffset: number = 0, targetRepo: string = repoUrl) => {
@@ -537,6 +539,7 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
                   <div className="relative group">
                     <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-emerald-500 transition-colors" size={18} />
                     <input
+                      ref={inputRef}
                       type="text"
                       autoFocus
                       value={repoUrl}
@@ -563,6 +566,8 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
                           onClick={() => {
                             setRepoUrl(result.full_name);
                             setShowDropdown(false);
+                            executeScan(0, result.full_name);
+                            inputRef.current?.blur();
                           }}
                           className="w-full px-4 py-3 text-left hover:bg-slate-800 border-b border-slate-800/50 last:border-0 transition-colors group/item"
                         >
@@ -623,7 +628,7 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
               <div className="p-6 bg-slate-900/40 border border-slate-800 rounded-xl backdrop-blur-md relative z-10 animate-in fade-in slide-in-from-left-4 duration-500 shadow-xl">
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-base sm:text-lg font-medium text-white flex items-center gap-2.5 truncate pr-4 font-sans">
-                    <Zap size={18} className="text-blue-400 fill-blue-400/20 shrink-0" /> 
+                    <Zap size={18} className="text-blue-400 fill-blue-400/20 shrink-0" />
                     {repoMetadata.full_name || (repoUrl && repoUrl.includes('/') ? repoUrl.split('/').filter(Boolean).slice(-2).join('/') : repoUrl) || 'CURRENT REPOSITORY'}
                   </h2>
                   <div className="px-2 py-1 bg-slate-950 border border-slate-800 rounded text-[10px] font-mono text-slate-500 uppercase shrink-0">
@@ -681,7 +686,7 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
                           };
                           const iconId = mapping[lang] || lang.toLowerCase().replace('#', 's').replace('++', 'pp');
                           return (
-                            <img 
+                            <img
                               key={lang}
                               src={`https://skillicons.dev/icons?i=${iconId}`}
                               alt={lang}
@@ -756,19 +761,19 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
                   <Terminal size={18} className="text-emerald-500" />
                   <span className="font-mono text-sm font-bold tracking-widest text-slate-300">ANALYSIS LOG</span>
                 </div>
-                
+
                 {/* Integrated Status & Timer */}
                 <div className="hidden sm:flex items-center gap-4 pl-6 border-l border-slate-800">
                   <div className="flex items-center gap-2">
                     <div className={`w-1.5 h-1.5 rounded-full 
-                      ${isScanning ? 'bg-blue-500 animate-pulse' : 
+                      ${isScanning ? 'bg-blue-500 animate-pulse' :
                         scanStatus === 'completed' ? 'bg-emerald-500' :
-                        scanStatus === 'partial' ? 'bg-amber-500' : 'bg-slate-700'} 
+                          scanStatus === 'partial' ? 'bg-amber-500' : 'bg-slate-700'} 
                       shadow-[0_0_8px_rgba(16,185,129,0.3)]`} />
                     <span className="text-[10px] text-slate-500 font-bold tracking-widest uppercase">
-                      {isScanning ? 'SCAN ACTIVE' : 
-                       scanStatus === 'completed' ? 'AUDIT COMPLETED' :
-                       scanStatus === 'partial' ? 'AUDIT STOPPED (PARTIAL)' : 'ENGINE READY'}
+                      {isScanning ? 'SCAN ACTIVE' :
+                        scanStatus === 'completed' ? 'AUDIT COMPLETED' :
+                          scanStatus === 'partial' ? 'AUDIT STOPPED (PARTIAL)' : 'ENGINE READY'}
                     </span>
                   </div>
                   <div className="flex items-center gap-2 bg-slate-950/50 px-2 py-0.5 rounded border border-slate-800">
