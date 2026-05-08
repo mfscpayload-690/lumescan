@@ -5,12 +5,13 @@ import Link from 'next/link';
 import {
   Terminal, ShieldCheck, Zap, AlertTriangle, Copy, Download,
   FileDown, FileCode, FileText, Square, Play, Star, GitFork,
-  Clock, Shield, Code, Cpu, Globe, Activity, Timer,
+  Clock, Shield, Code, Globe, Activity, Timer,
   ChevronDown, ChevronUp, Eye, Package, Unlock, Lock, AlertCircle,
   Search,
   History as HistoryIcon,
   RotateCcw,
-  CheckCircle2
+  CheckCircle2,
+  Loader2
 } from 'lucide-react';
 import { useAuditCache, AuditSession } from '@/hooks/useAuditCache';
 
@@ -96,6 +97,7 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
   const [repoUrl, setRepoUrl] = useState(initialRepo || '');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [isSearchingRepos, setIsSearchingRepos] = useState(false);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [findings, setFindings] = useState<Finding[]>([]);
   const [isScanning, setIsScanning] = useState(false);
@@ -111,6 +113,7 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
   const [scanStatus, setScanStatus] = useState<'idle' | 'scanning' | 'completed' | 'partial'>('idle');
   const { saveToHistory, saveActiveSession, getActiveSession, clearActiveSession } = useAuditCache();
   const scanIdRef = useRef<string>(Math.random().toString(36).substring(7));
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const addLog = (message: string, type: LogEntry['type'] = 'info') => {
     const newLog: LogEntry = {
@@ -195,21 +198,26 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
   useEffect(() => {
     const delayDebounceFn = setTimeout(async () => {
       if (repoUrl && repoUrl.length >= 2 && !repoUrl.startsWith('http')) {
+        setIsSearchingRepos(true);
+        setShowDropdown(true);
         try {
           const apiBase = process.env.NEXT_PUBLIC_API_BASE || 'http://127.0.0.1:8000';
           const res = await fetch(`${apiBase}/api/v1/search/repos?q=${encodeURIComponent(repoUrl)}`);
           if (!res.ok) throw new Error('Search failed');
           const data = await res.json();
           setSearchResults(data.items || []);
-          setShowDropdown(data.items?.length > 0);
+          setShowDropdown(data.items?.length > 0 || isSearchingRepos);
         } catch (error) {
           console.error("Search failed:", error);
           setSearchResults([]);
           setShowDropdown(false);
+        } finally {
+          setIsSearchingRepos(false);
         }
       } else {
         setSearchResults([]);
         setShowDropdown(false);
+        setIsSearchingRepos(false);
       }
     }, 500);
 
@@ -260,6 +268,7 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
     }
 
     executeScan(0);
+    inputRef.current?.blur();
   };
 
   const executeScan = async (currentOffset: number = 0, targetRepo: string = repoUrl) => {
@@ -530,6 +539,7 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
                   <div className="relative group">
                     <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-emerald-500 transition-colors" size={18} />
                     <input
+                      ref={inputRef}
                       type="text"
                       autoFocus
                       value={repoUrl}
@@ -541,8 +551,14 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
                   </div>
 
                   {/* Results Dropdown */}
-                  {showDropdown && searchResults.length > 0 && (
+                  {showDropdown && (isSearchingRepos || searchResults.length > 0) && (
                     <div className="absolute z-50 w-full mt-2 bg-slate-900 border border-slate-800 rounded-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+                      {isSearchingRepos && (
+                        <div className="p-4 flex items-center justify-center gap-2 text-slate-400 border-b border-slate-800/50">
+                          <Loader2 className="w-3 h-3 animate-spin text-emerald-500" />
+                          <span className="text-[10px] font-bold uppercase tracking-widest opacity-70">Searching Repositories...</span>
+                        </div>
+                      )}
                       {searchResults.map((result, idx) => (
                         <button
                           key={idx}
@@ -550,12 +566,14 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
                           onClick={() => {
                             setRepoUrl(result.full_name);
                             setShowDropdown(false);
+                            executeScan(0, result.full_name);
+                            inputRef.current?.blur();
                           }}
-                          className="w-full text-left px-4 py-3 hover:bg-slate-800 border-b border-slate-800 last:border-0 transition-colors"
+                          className="w-full px-4 py-3 text-left hover:bg-slate-800 border-b border-slate-800/50 last:border-0 transition-colors group/item"
                         >
-                          <div className="text-sm font-bold text-emerald-400">{result.full_name}</div>
+                          <div className="text-sm font-bold text-emerald-500 group-hover/item:text-emerald-400 truncate">{result.full_name}</div>
                           {result.description && (
-                            <div className="text-[10px] text-slate-500 truncate">{result.description}</div>
+                            <div className="text-[10px] text-slate-500 line-clamp-1 mt-0.5">{result.description}</div>
                           )}
                         </button>
                       ))}
@@ -610,7 +628,7 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
               <div className="p-6 bg-slate-900/40 border border-slate-800 rounded-xl backdrop-blur-md relative z-10 animate-in fade-in slide-in-from-left-4 duration-500 shadow-xl">
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-base sm:text-lg font-medium text-white flex items-center gap-2.5 truncate pr-4 font-sans">
-                    <Zap size={18} className="text-blue-400 fill-blue-400/20 shrink-0" /> 
+                    <Zap size={18} className="text-blue-400 fill-blue-400/20 shrink-0" />
                     {repoMetadata.full_name || (repoUrl && repoUrl.includes('/') ? repoUrl.split('/').filter(Boolean).slice(-2).join('/') : repoUrl) || 'CURRENT REPOSITORY'}
                   </h2>
                   <div className="px-2 py-1 bg-slate-950 border border-slate-800 rounded text-[10px] font-mono text-slate-500 uppercase shrink-0">
@@ -668,7 +686,7 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
                           };
                           const iconId = mapping[lang] || lang.toLowerCase().replace('#', 's').replace('++', 'pp');
                           return (
-                            <img 
+                            <img
                               key={lang}
                               src={`https://skillicons.dev/icons?i=${iconId}`}
                               alt={lang}
@@ -743,19 +761,19 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
                   <Terminal size={18} className="text-emerald-500" />
                   <span className="font-mono text-sm font-bold tracking-widest text-slate-300">ANALYSIS LOG</span>
                 </div>
-                
+
                 {/* Integrated Status & Timer */}
                 <div className="hidden sm:flex items-center gap-4 pl-6 border-l border-slate-800">
                   <div className="flex items-center gap-2">
                     <div className={`w-1.5 h-1.5 rounded-full 
-                      ${isScanning ? 'bg-blue-500 animate-pulse' : 
+                      ${isScanning ? 'bg-blue-500 animate-pulse' :
                         scanStatus === 'completed' ? 'bg-emerald-500' :
-                        scanStatus === 'partial' ? 'bg-amber-500' : 'bg-slate-700'} 
+                          scanStatus === 'partial' ? 'bg-amber-500' : 'bg-slate-700'} 
                       shadow-[0_0_8px_rgba(16,185,129,0.3)]`} />
                     <span className="text-[10px] text-slate-500 font-bold tracking-widest uppercase">
-                      {isScanning ? 'SCAN ACTIVE' : 
-                       scanStatus === 'completed' ? 'AUDIT COMPLETED' :
-                       scanStatus === 'partial' ? 'AUDIT STOPPED (PARTIAL)' : 'ENGINE READY'}
+                      {isScanning ? 'SCAN ACTIVE' :
+                        scanStatus === 'completed' ? 'AUDIT COMPLETED' :
+                          scanStatus === 'partial' ? 'AUDIT STOPPED (PARTIAL)' : 'ENGINE READY'}
                     </span>
                   </div>
                   <div className="flex items-center gap-2 bg-slate-950/50 px-2 py-0.5 rounded border border-slate-800">
