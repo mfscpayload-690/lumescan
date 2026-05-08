@@ -43,6 +43,7 @@ export const Navbar: React.FC = () => {
               <Link href="/welcome#features" className="text-sm font-medium text-slate-400 hover:text-white transition-colors">Features</Link>
               <Link href="/about" className="text-sm font-medium text-slate-400 hover:text-white transition-colors">About</Link>
               <a href="https://github.com/mfscpayload-690/lumescan/discussions" target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-slate-400 hover:text-white transition-colors">Community</a>
+              <Link href="/welcome#faq" className="text-sm font-medium text-slate-400 hover:text-white transition-colors">FAQ</Link>
               <Link href="/docs" className="text-sm font-medium text-emerald-500/80 hover:text-emerald-400 transition-colors flex items-center gap-1.5 font-bold">
                 Docs
                 <span className="px-1 py-0.5 bg-emerald-500/10 text-[8px] rounded uppercase">v1</span>
