@@ -5,6 +5,7 @@ import { Hero } from '@/landing/Hero';
 import { Features } from '@/landing/Features';
 import { Workflow } from '@/landing/Workflow';
 import { TechStack } from '@/landing/TechStack';
+import { FAQ } from '@/landing/FAQ';
 import { CTA } from '@/landing/CTA';
 import { Footer } from '@/landing/Footer';
 import { useReveal } from '@/hooks/useReveal';
@@ -21,6 +22,7 @@ export default function WelcomePage() {
           <Features />
           <Workflow />
           <TechStack />
+          <FAQ />
           <CTA />
         </div>
       </main>
