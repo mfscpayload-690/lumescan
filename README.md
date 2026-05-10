@@ -1,12 +1,3 @@
----
-title: LumeScan API
-emoji: 🛡️
-colorFrom: green
-colorTo: green
-sdk: docker
-app_port: 7860
----
-
 # LUME SCAN
 
 **LumeScan** is a high-speed, automated GitHub security auditor designed to detect logic flaws, exposed secrets, and misconfigurations in real-time. Powered by the **Groq Llama 3.3** engine, it provides deep-context security analysis with lightning-fast results.
