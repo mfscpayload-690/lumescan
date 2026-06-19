@@ -117,7 +117,7 @@ const DocsPage = () => {
 
                   <div className="w-full lg:w-1/3 p-4 bg-slate-950 border border-slate-800 rounded-xl text-center">
                     <div className="text-slate-200 font-bold mb-1 text-sm">AI Engine</div>
-                    <div className="text-[9px] text-slate-500 font-mono">Groq / Llama Core</div>
+                    <div className="text-[9px] text-slate-500 font-mono">Groq LPU + Bytéz</div>
                   </div>
                 </div>
 
@@ -138,6 +138,28 @@ const DocsPage = () => {
                   <div className="flex items-center gap-3 lg:flex-col lg:text-center">
                     <span className="w-6 h-6 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-white shrink-0">4</span>
                     <p>Workstation renders findings in real-time Matrix UI</p>
+                  </div>
+                </div>
+
+                {/* Dual-Engine Fallback Details */}
+                <div className="grid md:grid-cols-2 gap-4 mt-8 pt-8 border-t border-slate-800/60">
+                  <div className="p-5 bg-slate-950/40 border border-slate-800 rounded-xl space-y-2 hover:border-emerald-500/20 transition-all">
+                    <h4 className="font-bold text-white text-xs flex items-center gap-2">
+                      <Zap size={14} className="text-amber-400" />
+                      Primary Engine (Groq LPU)
+                    </h4>
+                    <p className="text-[11px] text-slate-500 leading-relaxed">
+                      Audits are primarily handled by the Llama 3.3 (70B) engine on Groq's high-speed LPU infrastructure, delivering near-instant streaming reasoning responses (sub-second token generation).
+                    </p>
+                  </div>
+                  <div className="p-5 bg-slate-950/40 border border-slate-800 rounded-xl space-y-2 hover:border-blue-500/20 transition-all">
+                    <h4 className="font-bold text-white text-xs flex items-center gap-2">
+                      <Cpu size={14} className="text-blue-400" />
+                      Fallback Engine (Bytéz Serverless)
+                    </h4>
+                    <p className="text-[11px] text-slate-500 leading-relaxed">
+                      For exceptionally large configuration matrices (e.g. <code>package-lock.json</code>) or under extreme rate-limiting (413/429 limits), the backend transparently falls back to a Bytéz serverless instance running Qwen 2.5 Coder (32B) to guarantee completion.
+                    </p>
                   </div>
                 </div>
               </div>

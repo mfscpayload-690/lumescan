@@ -89,6 +89,14 @@ interface Finding {
   recommendation: string;
 }
 
+const generateRandomId = () => {
+  return Math.random().toString(36).substring(7);
+};
+
+const getCurrentTimestamp = () => {
+  return Date.now();
+};
+
 interface WorkstationProps {
   initialRepo?: string;
 }
@@ -112,12 +120,14 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
   const [isLogCollapsed, setIsLogCollapsed] = useState(true);
   const [scanStatus, setScanStatus] = useState<'idle' | 'scanning' | 'completed' | 'partial'>('idle');
   const { saveToHistory, saveActiveSession, getActiveSession, clearActiveSession } = useAuditCache();
-  const scanIdRef = useRef<string>(Math.random().toString(36).substring(7));
+  const scanIdRef = useRef<string>(generateRandomId());
+  const activeScanIdRef = useRef<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const preventSearchRef = useRef(false);
 
   const addLog = (message: string, type: LogEntry['type'] = 'info') => {
     const newLog: LogEntry = {
-      id: Math.random().toString(36).substring(7),
+      id: generateRandomId(),
       message,
       type,
       timestamp: new Date().toLocaleTimeString(),
@@ -126,76 +136,21 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
   };
 
   useEffect(() => {
-    // Only scroll if we have more than the boot sequence logs
+    // Only scroll the log container to the bottom without scrolling the whole window
     if (logs.length > 4) {
-      logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [logs]);
-
-  const hasBooted = useRef(false);
-  const initialScanTriggered = useRef(false);
-
-  // System Boot Sequence
-  useEffect(() => {
-    if (!hasBooted.current) {
-      const bootSequence = [
-        { msg: 'LumeScan Professional v1.0.4 initializing...', type: 'info' as const, delay: 100 },
-        { msg: 'Establishing secure link to analysis cluster...', type: 'info' as const, delay: 600 },
-        { msg: 'Services Online: Security_Core, Dependency_Sentry, Secret_Vault.', type: 'success' as const, delay: 1100 },
-        { msg: 'SESSION AUTHORIZED. System ready.', type: 'success' as const, delay: 1600 }
-      ];
-
-      bootSequence.forEach((item) => {
-        setTimeout(() => {
-          addLog(item.msg, item.msg.includes('AUTHORIZED') || item.msg.includes('Online') ? 'success' : 'info');
-        }, item.delay);
-      });
-
-      hasBooted.current = true;
-    }
-
-    // If deep linked, auto-trigger scan after boot (only once)
-    if (initialRepo && !initialScanTriggered.current) {
-      const cached = getActiveSession(initialRepo);
-      if (cached && cached.findings) {
-        addLog(`Restoring active session for ${initialRepo}...`, 'info');
-        setFindings(cached.findings || []);
-        setLogs(prev => [...prev, ...(cached.logs || [])]);
-        setRepoMetadata(cached.metadata);
-        setTotalFound(cached.totalFiles || 0);
-        setOffset(0);
-        setScanStatus(cached.status || 'completed');
-        initialScanTriggered.current = true;
-      } else {
-        setTimeout(() => {
-          if (!initialScanTriggered.current) {
-            executeScan(0, initialRepo);
-            initialScanTriggered.current = true;
-          }
-        }, 2000);
+      const container = logEndRef.current?.parentElement;
+      if (container) {
+        container.scrollTop = container.scrollHeight;
       }
     }
-  }, [initialRepo, getActiveSession]);
-
-  // Persist active session as it changes
-  useEffect(() => {
-    if (isScanning && repoUrl) {
-      saveActiveSession(repoUrl, {
-        id: scanIdRef.current,
-        repo: repoUrl,
-        findings,
-        logs: logs.slice(-50), // Only last 50 logs for perf
-        metadata: repoMetadata,
-        totalFiles: totalFound,
-        status: scanStatus,
-        startedAt: new Date(scanStartTime || Date.now()).toISOString(),
-        elapsedSeconds: elapsedTime
-      });
-    }
-  }, [findings, logs, isScanning, repoUrl, repoMetadata, totalFound, scanStatus, scanStartTime, elapsedTime, saveActiveSession]);
-
+  }, [logs]);
   // Progressive Search Logic
   useEffect(() => {
+    if (preventSearchRef.current) {
+      preventSearchRef.current = false;
+      return;
+    }
+
     const delayDebounceFn = setTimeout(async () => {
       let searchQuery = repoUrl.trim();
       
@@ -204,6 +159,7 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
       const match = searchQuery.match(githubUrlRegex);
       if (match && match[2] && match[3]) {
         searchQuery = `${match[2]}/${match[3]}`;
+        preventSearchRef.current = true;
         setRepoUrl(searchQuery); // Update search bar UI immediately
       }
 
@@ -216,7 +172,7 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
           if (!res.ok) throw new Error('Search failed');
           const data = await res.json();
           setSearchResults(data.items || []);
-          setShowDropdown(data.items?.length > 0 || isSearchingRepos);
+          setShowDropdown(true);
         } catch (error) {
           console.error("Search failed:", error);
           setSearchResults([]);
@@ -237,24 +193,13 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
   // Timer Logic
   useEffect(() => {
     let interval: any;
-    if (isScanning) {
-      if (!scanStartTime) setScanStartTime(Date.now());
+    if (isScanning && scanStartTime !== null) {
       interval = setInterval(() => {
-        setElapsedTime(Math.floor((Date.now() - (scanStartTime || Date.now())) / 1000));
+        setElapsedTime(Math.floor((getCurrentTimestamp() - scanStartTime) / 1000));
       }, 1000);
-    } else {
-      clearInterval(interval);
     }
     return () => clearInterval(interval);
   }, [isScanning, scanStartTime]);
-
-  // Reset timer on new scan
-  useEffect(() => {
-    if (isScanning && offset === 0) {
-      setScanStartTime(Date.now());
-      setElapsedTime(0);
-    }
-  }, [isScanning, offset]);
 
   // Close dropdown on click outside
   useEffect(() => {
@@ -272,6 +217,7 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
     if (isScanning) return;
 
     let targetRepo = repoUrl.trim();
+    preventSearchRef.current = true;
     
     // Auto-extract owner/repo if a full GitHub URL is pasted
     const githubUrlRegex = /(https?:\/\/)?github.com\/([^/]+)\/([^/?]+)(\/[^$]+)?/;
@@ -287,16 +233,28 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
       return;
     }
 
+    setShowDropdown(false);
     executeScan(0, targetRepo);
     inputRef.current?.blur();
   };
 
   const executeScan = async (currentOffset: number = 0, targetRepo: string = repoUrl) => {
+    // Kill any existing active scan first
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    const currentScanId = generateRandomId();
+    activeScanIdRef.current = currentScanId;
+
     setIsScanning(true);
-    abortControllerRef.current = new AbortController();
-    const signal = abortControllerRef.current.signal;
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    const signal = controller.signal;
 
     if (currentOffset === 0) {
+      setScanStartTime(getCurrentTimestamp());
+      setElapsedTime(0);
       // Sync URL with browser address bar
       if (typeof window !== 'undefined') {
         window.history.pushState(null, '', `/${targetRepo}`);
@@ -308,7 +266,7 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
         setLogs([]);
         setOffset(0);
         setTotalFound(0);
-        scanIdRef.current = Math.random().toString(36).substring(7);
+        scanIdRef.current = generateRandomId();
       }
     }
 
@@ -332,6 +290,8 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
         throw new Error('Failed to initialize scan');
       }
 
+      if (activeScanIdRef.current !== currentScanId) return;
+
       const data = await response.json();
       setTotalFound(data.total_found);
       setOffset(data.offset);
@@ -349,6 +309,7 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
 
       if (data.files_found.length > 0) {
         if (signal.aborted) return;
+        if (activeScanIdRef.current !== currentScanId) return;
         addLog(`Initiating prioritized AI analysis for ${data.files_found.length} files...`, 'info');
 
         const analyzeResponse = await fetch(`${apiBase}/api/v1/scan/analyze`, {
@@ -374,6 +335,7 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
           while (true) {
             const { value, done } = await reader.read();
             if (done) break;
+            if (activeScanIdRef.current !== currentScanId) return;
 
             buffer += decoder.decode(value, { stream: true });
             const lines = buffer.split('\n');
@@ -381,6 +343,7 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
 
             for (const line of lines) {
               if (!line.trim()) continue;
+              if (activeScanIdRef.current !== currentScanId) return;
               try {
                 const result = JSON.parse(line);
 
@@ -421,24 +384,29 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
             }
           }
         }
+        if (activeScanIdRef.current !== currentScanId) return;
         scanCompletedSuccessfully = true;
       }
     } catch (err) {
-      if ((err as any).name === 'AbortError') {
-        addLog('Security audit terminated. Displaying results found so far.', 'warning');
-        setScanStatus('partial');
-        saveSessionToHistory('partial');
-      } else {
-        addLog(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`, 'error');
-        setScanStatus('idle');
+      if (activeScanIdRef.current === currentScanId) {
+        if ((err as any).name === 'AbortError') {
+          addLog('Security audit terminated. Displaying results found so far.', 'warning');
+          setScanStatus('partial');
+          saveSessionToHistory('partial');
+        } else {
+          addLog(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`, 'error');
+          setScanStatus('idle');
+        }
       }
     } finally {
-      setIsScanning(false);
-      abortControllerRef.current = null;
-      if (scanCompletedSuccessfully) {
-        setScanStatus('completed');
-        addLog('Full security audit complete.', 'success');
-        saveSessionToHistory('completed');
+      if (activeScanIdRef.current === currentScanId) {
+        setIsScanning(false);
+        abortControllerRef.current = null;
+        if (scanCompletedSuccessfully) {
+          setScanStatus('completed');
+          addLog('Full security audit complete.', 'success');
+          saveSessionToHistory('completed');
+        }
       }
     }
   };
@@ -453,13 +421,76 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
       metadata: repoMetadata,
       filesAnalyzed: findings.length,
       totalFiles: totalFound,
-      startedAt: new Date(scanStartTime || Date.now()).toISOString(),
+      startedAt: new Date(scanStartTime || getCurrentTimestamp()).toISOString(),
       completedAt: new Date().toISOString(),
       elapsedSeconds: elapsedTime
     };
     saveToHistory(session);
     clearActiveSession(repoUrl);
   };
+
+  const hasBooted = useRef(false);
+  const initialScanTriggered = useRef(false);
+
+  // System Boot Sequence
+  useEffect(() => {
+    if (!hasBooted.current) {
+      const bootSequence = [
+        { msg: 'LumeScan Professional v1.0.4 initializing...', type: 'info' as const, delay: 100 },
+        { msg: 'Establishing secure link to analysis cluster...', type: 'info' as const, delay: 600 },
+        { msg: 'Services Online: Security_Core, Dependency_Sentry, Secret_Vault.', type: 'success' as const, delay: 1100 },
+        { msg: 'SESSION AUTHORIZED. System ready.', type: 'success' as const, delay: 1600 }
+      ];
+
+      bootSequence.forEach((item) => {
+        setTimeout(() => {
+          addLog(item.msg, item.msg.includes('AUTHORIZED') || item.msg.includes('Online') ? 'success' : 'info');
+        }, item.delay);
+      });
+
+      hasBooted.current = true;
+    }
+
+    if (initialRepo && !initialScanTriggered.current) {
+      const cached = getActiveSession(initialRepo);
+      if (cached && cached.findings) {
+        setTimeout(() => {
+          addLog(`Restoring active session for ${initialRepo}...`, 'info');
+          setFindings(cached.findings || []);
+          setLogs(prev => [...prev, ...(cached.logs || [])]);
+          setRepoMetadata(cached.metadata);
+          setTotalFound(cached.totalFiles || 0);
+          setOffset(0);
+          setScanStatus(cached.status || 'completed');
+        }, 0);
+        initialScanTriggered.current = true;
+      } else {
+        setTimeout(() => {
+          if (!initialScanTriggered.current) {
+            executeScan(0, initialRepo);
+            initialScanTriggered.current = true;
+          }
+        }, 2000);
+      }
+    }
+  }, [initialRepo, getActiveSession, executeScan]);
+
+  // Persist active session as it changes
+  useEffect(() => {
+    if (isScanning && repoUrl) {
+      saveActiveSession(repoUrl, {
+        id: scanIdRef.current,
+        repo: repoUrl,
+        findings,
+        logs: logs.slice(-50), // Only last 50 logs for perf
+        metadata: repoMetadata,
+        totalFiles: totalFound,
+        status: scanStatus,
+        startedAt: new Date(scanStartTime || getCurrentTimestamp()).toISOString(),
+        elapsedSeconds: elapsedTime
+      });
+    }
+  }, [findings, logs, isScanning, repoUrl, repoMetadata, totalFound, scanStatus, scanStartTime, elapsedTime, saveActiveSession]);
 
   const handleStopScan = () => {
     if (abortControllerRef.current) {
@@ -569,39 +600,49 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
                       autoFocus
                       value={repoUrl}
                       onChange={(e) => setRepoUrl(e.target.value)}
-                      onFocus={() => repoUrl.length >= 2 && !repoUrl.startsWith('http') && setShowDropdown(true)}
+                      onFocus={() => {
+                        if (repoUrl.trim().length >= 2 && !repoUrl.startsWith('http')) {
+                          setShowDropdown(true);
+                        }
+                      }}
                       placeholder="e.g. owner/repo"
                       className="w-full bg-slate-950/50 border border-slate-800 pl-11 pr-4 py-3 rounded-lg text-sm focus:outline-none focus:border-emerald-500 transition-all cyber-glow placeholder:text-slate-600"
                     />
                   </div>
 
                   {/* Results Dropdown */}
-                  {showDropdown && (isSearchingRepos || searchResults.length > 0) && (
+                  {showDropdown && repoUrl.trim().length >= 2 && !repoUrl.startsWith('http') && (
                     <div className="absolute z-50 w-full mt-2 bg-slate-900 border border-slate-800 rounded-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-                      {isSearchingRepos && (
-                        <div className="p-4 flex items-center justify-center gap-2 text-slate-400 border-b border-slate-800/50">
+                      {isSearchingRepos ? (
+                        <div className="p-4 flex items-center justify-center gap-2 text-slate-400">
                           <Loader2 className="w-3 h-3 animate-spin text-emerald-500" />
                           <span className="text-[10px] font-bold uppercase tracking-widest opacity-70">Searching Repositories...</span>
                         </div>
+                      ) : searchResults.length > 0 ? (
+                        searchResults.map((result, idx) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => {
+                              preventSearchRef.current = true;
+                              setRepoUrl(result.full_name);
+                              setShowDropdown(false);
+                              executeScan(0, result.full_name);
+                              inputRef.current?.blur();
+                            }}
+                            className="w-full px-4 py-3 text-left hover:bg-slate-800 border-b border-slate-800/50 last:border-0 transition-colors group/item"
+                          >
+                            <div className="text-sm font-bold text-emerald-500 group-hover/item:text-emerald-400 truncate">{result.full_name}</div>
+                            {result.description && (
+                              <div className="text-[10px] text-slate-500 line-clamp-1 mt-0.5">{result.description}</div>
+                            )}
+                          </button>
+                        ))
+                      ) : (
+                        <div className="p-4 text-center text-xs text-slate-500 font-bold uppercase tracking-wider">
+                          No results found!
+                        </div>
                       )}
-                      {searchResults.map((result, idx) => (
-                        <button
-                          key={idx}
-                          type="button"
-                          onClick={() => {
-                            setRepoUrl(result.full_name);
-                            setShowDropdown(false);
-                            executeScan(0, result.full_name);
-                            inputRef.current?.blur();
-                          }}
-                          className="w-full px-4 py-3 text-left hover:bg-slate-800 border-b border-slate-800/50 last:border-0 transition-colors group/item"
-                        >
-                          <div className="text-sm font-bold text-emerald-500 group-hover/item:text-emerald-400 truncate">{result.full_name}</div>
-                          {result.description && (
-                            <div className="text-[10px] text-slate-500 line-clamp-1 mt-0.5">{result.description}</div>
-                          )}
-                        </button>
-                      ))}
                     </div>
                   )}
                 </div>
