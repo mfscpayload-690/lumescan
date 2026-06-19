@@ -121,6 +121,7 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
   const [scanStatus, setScanStatus] = useState<'idle' | 'scanning' | 'completed' | 'partial'>('idle');
   const { saveToHistory, saveActiveSession, getActiveSession, clearActiveSession } = useAuditCache();
   const scanIdRef = useRef<string>(generateRandomId());
+  const activeScanIdRef = useRef<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const preventSearchRef = useRef(false);
 
@@ -238,9 +239,18 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
   };
 
   const executeScan = async (currentOffset: number = 0, targetRepo: string = repoUrl) => {
+    // Kill any existing active scan first
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    const currentScanId = generateRandomId();
+    activeScanIdRef.current = currentScanId;
+
     setIsScanning(true);
-    abortControllerRef.current = new AbortController();
-    const signal = abortControllerRef.current.signal;
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    const signal = controller.signal;
 
     if (currentOffset === 0) {
       setScanStartTime(getCurrentTimestamp());
@@ -280,6 +290,8 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
         throw new Error('Failed to initialize scan');
       }
 
+      if (activeScanIdRef.current !== currentScanId) return;
+
       const data = await response.json();
       setTotalFound(data.total_found);
       setOffset(data.offset);
@@ -297,6 +309,7 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
 
       if (data.files_found.length > 0) {
         if (signal.aborted) return;
+        if (activeScanIdRef.current !== currentScanId) return;
         addLog(`Initiating prioritized AI analysis for ${data.files_found.length} files...`, 'info');
 
         const analyzeResponse = await fetch(`${apiBase}/api/v1/scan/analyze`, {
@@ -322,6 +335,7 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
           while (true) {
             const { value, done } = await reader.read();
             if (done) break;
+            if (activeScanIdRef.current !== currentScanId) return;
 
             buffer += decoder.decode(value, { stream: true });
             const lines = buffer.split('\n');
@@ -329,6 +343,7 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
 
             for (const line of lines) {
               if (!line.trim()) continue;
+              if (activeScanIdRef.current !== currentScanId) return;
               try {
                 const result = JSON.parse(line);
 
@@ -369,24 +384,29 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
             }
           }
         }
+        if (activeScanIdRef.current !== currentScanId) return;
         scanCompletedSuccessfully = true;
       }
     } catch (err) {
-      if ((err as any).name === 'AbortError') {
-        addLog('Security audit terminated. Displaying results found so far.', 'warning');
-        setScanStatus('partial');
-        saveSessionToHistory('partial');
-      } else {
-        addLog(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`, 'error');
-        setScanStatus('idle');
+      if (activeScanIdRef.current === currentScanId) {
+        if ((err as any).name === 'AbortError') {
+          addLog('Security audit terminated. Displaying results found so far.', 'warning');
+          setScanStatus('partial');
+          saveSessionToHistory('partial');
+        } else {
+          addLog(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`, 'error');
+          setScanStatus('idle');
+        }
       }
     } finally {
-      setIsScanning(false);
-      abortControllerRef.current = null;
-      if (scanCompletedSuccessfully) {
-        setScanStatus('completed');
-        addLog('Full security audit complete.', 'success');
-        saveSessionToHistory('completed');
+      if (activeScanIdRef.current === currentScanId) {
+        setIsScanning(false);
+        abortControllerRef.current = null;
+        if (scanCompletedSuccessfully) {
+          setScanStatus('completed');
+          addLog('Full security audit complete.', 'success');
+          saveSessionToHistory('completed');
+        }
       }
     }
   };
