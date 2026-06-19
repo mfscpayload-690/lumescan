@@ -135,9 +135,12 @@ export const Workstation: React.FC<WorkstationProps> = ({ initialRepo }) => {
   };
 
   useEffect(() => {
-    // Only scroll if we have more than the boot sequence logs
+    // Only scroll the log container to the bottom without scrolling the whole window
     if (logs.length > 4) {
-      logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      const container = logEndRef.current?.parentElement;
+      if (container) {
+        container.scrollTop = container.scrollHeight;
+      }
     }
   }, [logs]);
   // Progressive Search Logic
