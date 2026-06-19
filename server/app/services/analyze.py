@@ -145,6 +145,9 @@ class AnalyzeService:
             analysis_cache.set(cache_key, result)
             return result
         except Exception as e:
-            return {"error": f"Groq Analysis failed: {str(e)}", "file": path}
+            import traceback
+            print(f"ERROR: Groq analysis failed for file '{path}':")
+            traceback.print_exc()
+            return {"error": "Analysis failed for this file", "file": path}
 
 analyze_service = AnalyzeService()
