@@ -148,6 +148,41 @@ class AnalyzeService:
             import traceback
             print(f"ERROR: Groq analysis failed for file '{path}':")
             traceback.print_exc()
+            
+            if settings.BYTEZ_API_KEY:
+                print(f"INFO: Attempting fallback to Bytéz model '{settings.FALLBACK_MODEL}'...")
+                try:
+                    url = "https://api.bytez.com/models/v2/openai/chat/completions"
+                    headers = {
+                        "Authorization": f"Bearer {settings.BYTEZ_API_KEY}",
+                        "Content-Type": "application/json"
+                    }
+                    payload = {
+                        "model": settings.FALLBACK_MODEL,
+                        "messages": [
+                            {"role": "system", "content": "You are a specialized security auditor JSON output machine."},
+                            {"role": "user", "content": prompt}
+                        ],
+                        "response_format": {"type": "json_object"}
+                    }
+                    async with httpx.AsyncClient() as client:
+                        response = await client.post(url, headers=headers, json=payload, timeout=60.0)
+                        if response.status_code != 200:
+                            raise Exception(f"Bytéz API returned status code {response.status_code}: {response.text}")
+                        
+                        data = response.json()
+                        result = json.loads(data["choices"][0]["message"]["content"])
+                        result["file"] = path
+                        result["category"] = category
+                        
+                        # Save to cache
+                        analysis_cache.set(cache_key, result)
+                        print(f"SUCCESS: Bytéz analysis completed successfully for '{path}'")
+                        return result
+                except Exception as fallback_err:
+                    print(f"ERROR: Bytéz fallback also failed for file '{path}':")
+                    traceback.print_exc()
+            
             return {"error": "Analysis failed for this file", "file": path}
 
 analyze_service = AnalyzeService()
